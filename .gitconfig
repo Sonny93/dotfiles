@@ -1,0 +1,7 @@
+[alias]
+	co = checkout
+	st = status
+	force = push --force-with-lease
+	com = commit -m
+[pull]
+	rebase = false
