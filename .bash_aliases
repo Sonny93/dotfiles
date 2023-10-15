@@ -1,2 +1,5 @@
 alias l='ls -alF'
 alias gs='git status'
+alias CT_FORCE_REMOVE='docker rm -f $(docker ps -aq)'
+alias IMG_FORCE_REMOVE='docker image rm -f $(docker image ls -q)'
+alias VOL_FORCE_REMOVE='docker volume rm -f $(docker volume ls -q)'
