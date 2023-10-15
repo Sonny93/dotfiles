@@ -1,0 +1,12 @@
+# Ignore Everything
+*
+.fzf
+
+# Except
+!.bash_aliases
+!.bash_rc
+!.fzf.bash
+!.fzf.zsh
+!.gitconfig
+!.zshrc
+!.gitignore
