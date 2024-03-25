@@ -4,4 +4,4 @@
 	force = push --force-with-lease
 	com = commit -m
 [pull]
-	rebase = false
+	rebase = true
