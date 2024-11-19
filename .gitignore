@@ -8,3 +8,5 @@
 !.gitconfig
 !.zshrc
 !.gitignore
+!dev/dev.gitconfig
+!work/work.gitconfig
