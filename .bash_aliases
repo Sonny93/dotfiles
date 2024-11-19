@@ -6,7 +6,9 @@ alias dcrm='docker rm -f $(docker ps -aq)'
 alias dirm='docker image rm -f $(docker image ls -q)'
 alias dvrm='docker volume rm -f $(docker volume ls -q)'
 alias dpsa='docker ps -a --format="table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}"'
+alias dockerClean='docker system prune -af --volumes'
 alias watchContainers="watch -n 1 'docker ps -a --format=\"table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}\"'"
-alias wc="watch -n 1 'docker ps -a --format=\"table {{.Names}}\t{{.Image}}\t{{.Status}}\t{{.Ports}}\"'"
 alias k='kubectl'
 alias ncu='npx --yes npm-check-updates --format group --interactive -p pnpm'
+alias dive='docker run -ti --rm  -v /var/run/docker.sock:/var/run/docker.sock wagoodman/dive'
+alias dis='echo -n '\''Nom image Docker (tag optionnel) : '\'' && read image && echo '\''Taille approximative (Mo): '\''$(docker save $image | gzip -c | wc -c | awk '\''{printf "%.2f", $1/1048576}'\'') Mo'
