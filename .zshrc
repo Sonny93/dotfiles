@@ -6,7 +6,7 @@ ZSH_THEME="amuse"
 # Load bash aliases
 source $HOME/dotfiles/.bash_aliases
 
-# Auto updaye oh-my-zsh
+# Auto update oh-my-zsh
 zstyle ':omz:update' mode auto
 
 # Enable command auto-correction
