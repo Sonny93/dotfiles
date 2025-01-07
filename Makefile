@@ -44,3 +44,6 @@ apply:
 	else \
 		echo "Custom .gitconfig include already present in $(GITCONFIG_PATH)."; \
 	fi; }
+
+	@ln -sf $(PWD)/.npmrc $(HOME)/.npmrc
+	@echo "Symlink created for .npmrc in $(HOME)/.npmrc"
