@@ -135,12 +135,3 @@ source ~/.zshrc
 
 > Le bloc doit être à la fin du fichier — s'il est placé avant le chargement
 > des plugins, il n'a aucun effet au démarrage d'une nouvelle session.
-
----
-
-## 7. Vérification finale
-
-```zsh
-echo $SHELL        # /usr/bin/zsh
-p10k version       # v1.x.x
-```
