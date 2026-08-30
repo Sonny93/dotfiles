@@ -1,7 +1,7 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 
-apply: gitconfig bash-aliases zshrc mise-config tools starship
+apply: gitconfig bash-aliases zshrc mise-config tools starship tabby
 
 gitconfig:
     #!/usr/bin/env bash
@@ -48,6 +48,21 @@ starship:
     mkdir -p {{home}}/.config
     ln -sf {{dotfiles}}/starship.toml {{home}}/.config/starship.toml
     echo "Symlink created for starship.toml"
+
+tabby:
+    #!/usr/bin/env bash
+    mkdir -p {{home}}/.config/tabby
+    if [ ! -f {{home}}/.config/tabby/config.yaml ]; then
+        cp {{dotfiles}}/tabby/config.yaml {{home}}/.config/tabby/config.yaml
+        echo "Tabby config seeded. Add SSH profiles locally in-app — never committed."
+    else
+        echo "Local Tabby config.yaml already exists, left untouched."
+    fi
+
+tabby-export:
+    #!/usr/bin/env bash
+    python3 {{dotfiles}}/scripts/tabby_export.py {{home}}/.config/tabby/config.yaml {{dotfiles}}/tabby/config.yaml
+    echo "Shared Tabby settings exported to repo, profiles/hosts stripped."
 
 gh-auth:
     #!/usr/bin/env bash
