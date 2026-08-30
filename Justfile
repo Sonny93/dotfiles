@@ -49,6 +49,20 @@ starship:
     ln -sf {{dotfiles}}/starship.toml {{home}}/.config/starship.toml
     echo "Symlink created for starship.toml"
 
+gh-auth:
+    #!/usr/bin/env bash
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        echo "GITHUB_TOKEN still exported this shell — unset it, reload .zshrc, retry."
+        exit 1
+    fi
+    if ! gh auth status >/dev/null 2>&1; then
+        echo "No gh auth found, launching 'gh auth login'..."
+        gh auth login
+    else
+        echo "gh already authenticated:"
+        gh auth status
+    fi
+
 uninstall-omz:
     #!/usr/bin/env bash
     echo "Will remove:"

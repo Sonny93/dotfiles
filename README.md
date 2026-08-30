@@ -18,11 +18,18 @@ just apply
 
 - `just apply` — symlinks (`.zshrc`, `.gitconfig`, `mise/config.toml`, `starship.toml`) + install/update des outils via mise
 - `just tools` — installe/upgrade les outils listés dans `mise/config.toml` (idempotent, safe à relancer)
+- `just gh-auth` — vérifie/initialise l'authentification `gh` (login interactif si besoin)
 - `just uninstall-omz` — désinstalle proprement Oh My Zsh / Powerlevel10k (liste ce qui sera supprimé avant confirmation)
 
 ### Shell
 
 zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`ctrl+r`/`ctrl+t`/`alt+c` via `fzf --zsh`). Tous les binaires (starship, fzf, node, gh, rust, ...) sont gérés par [mise](https://mise.jdx.dev), config dans `mise/config.toml`.
+
+### Sécurité — modèle de confiance
+
+Ce repo ne contient **jamais** de secret ni d'identité git secondaire :
+
+- Identité git : `dotfiles/.gitconfig` inclut inconditionnellement `~/.gitconfig.local`, un fichier **non tracké**, créé manuellement par machine. Absent = pas d'identité par défaut (choix volontaire par repo).
 
 ### MOTD
 
