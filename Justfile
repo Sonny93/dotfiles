@@ -1,7 +1,7 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 
-apply: gitconfig npmrc bash-aliases
+apply: gitconfig bash-aliases zshrc mise-config tools starship
 
 gitconfig:
     #!/usr/bin/env bash
@@ -15,15 +15,52 @@ gitconfig:
         echo "Custom .gitconfig include already present."
     fi
 
-npmrc:
-    ln -sf {{dotfiles}}/.npmrc {{home}}/.npmrc
-    echo "Symlink created for .npmrc"
-
 bash-aliases:
     #!/usr/bin/env bash
-    if ! grep -q "source {{dotfiles}}/.bash_aliases" {{home}}/.zshrc; then
+    if ! grep -q "source {{dotfiles}}/.bash_aliases" {{home}}/.zshrc 2>/dev/null; then
         printf "\n[ -f {{dotfiles}}/.bash_aliases ] && source {{dotfiles}}/.bash_aliases\n" >> {{home}}/.zshrc
         echo "bash_aliases import added."
     else
         echo "bash_aliases import already present."
+    fi
+
+zshrc:
+    #!/usr/bin/env bash
+    ln -sf {{dotfiles}}/.zshrc {{home}}/.zshrc
+    echo "Symlink created for .zshrc"
+
+mise-config:
+    #!/usr/bin/env bash
+    mkdir -p {{home}}/.config/mise
+    ln -sf {{dotfiles}}/mise/config.toml {{home}}/.config/mise/config.toml
+    mise trust {{dotfiles}}/mise/config.toml
+    echo "Symlink created for mise config.toml"
+
+tools:
+    #!/usr/bin/env bash
+    mise self-update -y
+    mise install
+    mise upgrade
+    echo "Tools installed/updated via mise."
+
+starship:
+    #!/usr/bin/env bash
+    mkdir -p {{home}}/.config
+    ln -sf {{dotfiles}}/starship.toml {{home}}/.config/starship.toml
+    echo "Symlink created for starship.toml"
+
+uninstall-omz:
+    #!/usr/bin/env bash
+    echo "Will remove:"
+    echo "  {{home}}/.oh-my-zsh          (full OMZ install, incl. P10k theme + dead starship-plugin stub)"
+    echo "  {{home}}/.p10k.zsh"
+    echo "  {{home}}/.cache/p10k-*       (instant-prompt cache + dumps)"
+    read -p "Confirm? [y/N] " confirm
+    if [ "$confirm" = "y" ]; then
+        rm -rf {{home}}/.oh-my-zsh
+        rm -f {{home}}/.p10k.zsh
+        rm -rf {{home}}/.cache/p10k-*
+        echo "Removed."
+    else
+        echo "Aborted."
     fi
