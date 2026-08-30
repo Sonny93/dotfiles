@@ -84,6 +84,16 @@ githooks:
     chmod +x {{dotfiles}}/githooks/pre-commit
     echo "Git hooksPath set to {{dotfiles}}/githooks"
 
+doctor:
+    #!/usr/bin/env bash
+    [ -n "${GITHUB_TOKEN:-}" ] && echo "WARN: GITHUB_TOKEN still exported" || echo "OK: no GITHUB_TOKEN"
+    gh auth status >/dev/null 2>&1 && echo "OK: gh authenticated" || echo "WARN: gh not authenticated, run 'just gh-auth'"
+    [ -f {{home}}/.gitconfig.local ] && echo "OK: ~/.gitconfig.local present" || echo "WARN: no ~/.gitconfig.local, git commits will fail until set"
+    command -v starship >/dev/null 2>&1 && echo "OK: starship" || echo "WARN: starship missing, run 'just tools'"
+    command -v fzf >/dev/null 2>&1 && echo "OK: fzf" || echo "WARN: fzf missing, run 'just tools'"
+    command -v gitleaks >/dev/null 2>&1 && echo "OK: gitleaks" || echo "WARN: gitleaks missing, run 'just tools'"
+    [ "$(git config core.hooksPath)" = "{{dotfiles}}/githooks" ] && echo "OK: git hooks wired" || echo "WARN: run 'just githooks'"
+
 uninstall-omz:
     #!/usr/bin/env bash
     echo "Will remove:"

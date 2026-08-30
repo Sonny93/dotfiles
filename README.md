@@ -12,13 +12,20 @@ Puis appliquer les fichiers et outils :
 just apply
 ```
 
+Vérifier que tout est en place :
+
+```sh
+just doctor
+```
+
 /!\ On laisse tout dans le dossier original
 
 ### Détail des targets
 
-- `just apply` — symlinks (`.zshrc`, `.gitconfig`, `mise/config.toml`, `starship.toml`, Tabby seed) + install/update des outils via mise
+- `just apply` — symlinks (`.zshrc`, `.gitconfig`, `mise/config.toml`, `starship.toml`, Tabby seed) + install/update des outils via mise + git hooks
 - `just tools` — installe/upgrade les outils listés dans `mise/config.toml` (idempotent, safe à relancer)
 - `just gh-auth` — vérifie/initialise l'authentification `gh` (login interactif si besoin)
+- `just doctor` — vérifie l'état complet de la config (secrets, auth, outils, hooks)
 - `just tabby-export` — resynchronise les réglages partagés Tabby (thème/hotkeys) vers le repo, sans les profils/hosts
 - `just uninstall-omz` — désinstalle proprement Oh My Zsh / Powerlevel10k (liste ce qui sera supprimé avant confirmation)
 
