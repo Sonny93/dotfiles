@@ -32,6 +32,7 @@ Ce repo ne contient **jamais** de secret ni d'identité git secondaire :
 
 - Identité git : `dotfiles/.gitconfig` inclut inconditionnellement `~/.gitconfig.local`, un fichier **non tracké**, créé manuellement par machine. Absent = pas d'identité par défaut (choix volontaire par repo).
 - Tabby : `tabby/config.yaml` versionné contient uniquement thème/hotkeys/réglages généraux. `profiles`, `groups`, `ssh.knownHosts`, `configSync` sont systématiquement exclus (`scripts/tabby_export.py`) — jamais de symlink direct sur le fichier live pour éviter qu'une connexion SSH ajoutée dans l'app ne remonte dans le repo.
+- `gitleaks` tourne en pre-commit hook (`githooks/pre-commit`, activé par `just githooks`) pour bloquer tout secret qui tenterait quand même de rentrer.
 
 ### MOTD
 

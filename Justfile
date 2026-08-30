@@ -1,7 +1,7 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 
-apply: gitconfig bash-aliases zshrc mise-config tools starship tabby
+apply: gitconfig bash-aliases zshrc mise-config tools starship tabby githooks
 
 gitconfig:
     #!/usr/bin/env bash
@@ -77,6 +77,12 @@ gh-auth:
         echo "gh already authenticated:"
         gh auth status
     fi
+
+githooks:
+    #!/usr/bin/env bash
+    git config core.hooksPath {{dotfiles}}/githooks
+    chmod +x {{dotfiles}}/githooks/pre-commit
+    echo "Git hooksPath set to {{dotfiles}}/githooks"
 
 uninstall-omz:
     #!/usr/bin/env bash
