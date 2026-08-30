@@ -6,15 +6,23 @@ Il faut clone ce repo dans $HOME
 git clone git@github.com:Sonny93/dotfiles
 ```
 
-Suivre le guide d'installation zsh/Oh My Zsh/Powerlevel10k : [docs/ohmyzsh-p10k-debian13.md](docs/ohmyzsh-p10k-debian13.md)
-
-Puis appliquer les nouveaux fichiers
+Puis appliquer les fichiers et outils :
 
 ```sh
-make apply
+just apply
 ```
 
 /!\ On laisse tout dans le dossier original
+
+### Détail des targets
+
+- `just apply` — symlinks (`.zshrc`, `.gitconfig`, `mise/config.toml`, `starship.toml`) + install/update des outils via mise
+- `just tools` — installe/upgrade les outils listés dans `mise/config.toml` (idempotent, safe à relancer)
+- `just uninstall-omz` — désinstalle proprement Oh My Zsh / Powerlevel10k (liste ce qui sera supprimé avant confirmation)
+
+### Shell
+
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`ctrl+r`/`ctrl+t`/`alt+c` via `fzf --zsh`). Tous les binaires (starship, fzf, node, gh, rust, ...) sont gérés par [mise](https://mise.jdx.dev), config dans `mise/config.toml`.
 
 ### MOTD
 
@@ -37,26 +45,8 @@ echo "🌡️  Uptime : $(uptime -p)"
 echo ""
 ```
 
-### Pour changer comportement par défaut de CD
-
-Faut modifier dans ~/.zshrc, à la toute fin
-
-```
-cd() {
-  if [ $# -eq 0 ]; then
-    builtin cd ~/dev
-  else
-    builtin cd "$@"
-  fi
-}
-
-if [[ $SHLVL -eq 1 ]]; then
-  cd ~/dev
-fi
-```
-
 ### Pour tabby
 
 > precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
 
-Source https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
+Déjà inclus dans `.zshrc`. Source https://github.com/Eugeny/tabby/wiki/Shell-working-directory-reporting
