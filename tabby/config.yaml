@@ -1,0 +1,45 @@
+version: 8
+hotkeys:
+  toggle-window:
+    - Ctrl-Shift-Space
+  next-tab:
+    - Ctrl-Tab
+  previous-tab:
+    - Ctrl-Shift-Tab
+  close-pane:
+    - Ctrl-Shift-W
+terminal:
+  colorScheme:
+    name: Cobalt2
+    foreground: '#ffffff'
+    background: '#132738'
+    cursor: '#f0cc09'
+    colors:
+      - '#000000'
+      - '#ff0000'
+      - '#38de21'
+      - '#ffe50a'
+      - '#1460d2'
+      - '#ff005d'
+      - '#00bbbb'
+      - '#bbbbbb'
+      - '#555555'
+      - '#f40e17'
+      - '#3bd01d'
+      - '#edc809'
+      - '#5555ff'
+      - '#ff55ff'
+      - '#6ae3fa'
+      - '#ffffff'
+  cursor: underline
+  ligatures: true
+  minimumContrastRatio: 8
+  fontSize: 17
+ssh:
+  warnOnClose: true
+enableAnalytics: false
+enableWelcomeTab: false
+pluginBlacklist:
+  - telnet
+  - serial
+recoverTabs: false
