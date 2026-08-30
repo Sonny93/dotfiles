@@ -1,7 +1,7 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 
-apply: gitconfig bash-aliases zshrc mise-config tools starship tabby githooks
+apply: gitconfig zshrc mise-config tools starship tabby githooks
 
 gitconfig:
     #!/usr/bin/env bash
@@ -13,15 +13,6 @@ gitconfig:
         echo "Custom .gitconfig include added."
     else
         echo "Custom .gitconfig include already present."
-    fi
-
-bash-aliases:
-    #!/usr/bin/env bash
-    if ! grep -q "source {{dotfiles}}/.bash_aliases" {{home}}/.zshrc 2>/dev/null; then
-        printf "\n[ -f {{dotfiles}}/.bash_aliases ] && source {{dotfiles}}/.bash_aliases\n" >> {{home}}/.zshrc
-        echo "bash_aliases import added."
-    else
-        echo "bash_aliases import already present."
     fi
 
 zshrc:

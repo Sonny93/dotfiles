@@ -19,7 +19,8 @@ zinit light zsh-users/zsh-autosuggestions
 zinit ice wait lucid atload'_zsh_autosuggest_start'
 zinit light zsh-users/zsh-syntax-highlighting
 
-eval "$("$HOME/.local/bin/mise" activate zsh)"
+export PATH="$HOME/.local/bin:$PATH"
+eval "$(mise activate zsh)"
 eval "$(starship init zsh)"
 eval "$(fzf --zsh)"
 
@@ -55,5 +56,3 @@ source <(JUST_COMPLETE=zsh just)
 if [ "$funcstack[1]" = "_just" ]; then
   _clap_dynamic_completer_just "$@"
 fi
-
-[ -f /home/sonny/dotfiles/.bash_aliases ] && source /home/sonny/dotfiles/.bash_aliases
