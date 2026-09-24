@@ -41,7 +41,49 @@ if [[ $SHLVL -eq 1 ]]; then
   cd ~/dev
 fi
 
-precmd () { echo -n "\x1b]1337;CurrentDir=$(pwd)\x07" }
+TAB_TITLE_MAX_COMMAND_LENGTH=30
+
+set_tab_title() {
+  printf '\e]0;%s\a' "$1"
+}
+
+current_location() {
+  local gitRootPath
+  gitRootPath=$(git rev-parse --show-toplevel 2>/dev/null)
+
+  if [[ -z "$gitRootPath" ]]; then
+    print -P '%2~'
+    return
+  fi
+
+  local repositoryName="${gitRootPath:t}"
+  local relativePath="${PWD#"$gitRootPath"}"
+  relativePath="${relativePath#/}"
+
+  if [[ -z "$relativePath" ]]; then
+    echo "$repositoryName"
+  else
+    echo "$repositoryName/$relativePath"
+  fi
+}
+
+show_idle_title() {
+  set_tab_title "$(current_location)"
+}
+
+show_running_title() {
+  local collapsedCommand="${1//$'\n'/ }"
+
+  if [[ ${#collapsedCommand} -gt $TAB_TITLE_MAX_COMMAND_LENGTH ]]; then
+    collapsedCommand="${collapsedCommand[1,$TAB_TITLE_MAX_COMMAND_LENGTH]}…"
+  fi
+
+  set_tab_title "▶ $collapsedCommand · $(current_location)"
+}
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd show_idle_title
+add-zsh-hook preexec show_running_title
 
 # pnpm
 export PNPM_HOME="$HOME/.local/share/pnpm"
