@@ -13,3 +13,6 @@ pnpm = "latest"
 rust = "latest"
 starship = "latest"
 yarn = "1"
+
+[settings]
+minimum_release_age_excludes = ["claude"]
