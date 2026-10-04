@@ -103,84 +103,86 @@ gh-auth:
 # Check the shell setup (servers and dev machines)
 doctor-server:
     #!/usr/bin/env bash
+    source {{dotfiles}}/scripts/status.sh
     check_link() {
         local link="$1" target="$2"
         if [ "$(readlink "$link")" = "$target" ]; then
-            echo "OK: $link -> $target"
+            ok "$link -> $target"
         else
-            echo "WARN: $link is not a symlink to $target, run 'just shell'"
+            warn "$link is not a symlink to $target, run 'just shell'"
         fi
     }
     if command -v zsh >/dev/null 2>&1; then
-        echo "OK: zsh installed"
+        ok "zsh installed"
     else
-        echo "WARN: zsh missing, run 'sudo apt install zsh' then 'just shell'"
+        warn "zsh missing, run 'sudo apt install zsh' then 'just shell'"
     fi
     login_shell="$(getent passwd "$USER" | cut -d: -f7)"
     if [ "$(basename "$login_shell")" = "zsh" ]; then
-        echo "OK: login shell is zsh"
+        ok "login shell is zsh"
     else
-        echo "WARN: login shell is $login_shell, run 'chsh -s \"\$(command -v zsh)\"'"
+        warn "login shell is $login_shell, run 'chsh -s \"\$(command -v zsh)\"'"
     fi
     check_link "{{home}}/.zshrc" "{{dotfiles}}/.zshrc"
     check_link "{{home}}/.config/starship.toml" "{{dotfiles}}/starship.toml"
     check_link "{{home}}/.config/mise/config.toml" "{{dotfiles}}/mise/config.toml"
     if command -v mise >/dev/null 2>&1; then
-        echo "OK: mise on PATH"
+        ok "mise on PATH"
     else
-        echo "WARN: mise not on PATH, install mise then run 'just shell'"
+        warn "mise not on PATH, install mise then run 'just shell'"
     fi
     for tool in {{shell_tools}}; do
         if mise which "$tool" >/dev/null 2>&1; then
-            echo "OK: $tool installed via mise"
+            ok "$tool installed via mise"
         else
-            echo "WARN: $tool missing, run 'just shell'"
+            warn "$tool missing, run 'just shell'"
         fi
     done
 
 # Check the full dev machine setup
 doctor-dev: doctor-server
     #!/usr/bin/env bash
+    source {{dotfiles}}/scripts/status.sh
     if [ -n "${GITHUB_TOKEN:-}" ]; then
-        echo "WARN: GITHUB_TOKEN still exported, unset it and reload .zshrc"
+        warn "GITHUB_TOKEN still exported, unset it and reload .zshrc"
     else
-        echo "OK: no GITHUB_TOKEN"
+        ok "no GITHUB_TOKEN"
     fi
     if gh auth status >/dev/null 2>&1; then
-        echo "OK: gh authenticated"
+        ok "gh authenticated"
     else
-        echo "WARN: gh not authenticated, run 'just gh-auth'"
+        warn "gh not authenticated, run 'just gh-auth'"
     fi
     if [ "$(git config --global --get-all credential.https://github.com.helper | tail -n 1)" = '!gh auth git-credential' ] && [ "$(gh config get git_protocol)" = "https" ]; then
-        echo "OK: git and gh use HTTPS through gh"
+        ok "git and gh use HTTPS through gh"
     else
-        echo "WARN: git credential helper or gh protocol not set, run 'just gh-auth'"
+        warn "git credential helper or gh protocol not set, run 'just gh-auth'"
     fi
     if [ "$(git ls-remote --get-url git@github.com:Sonny93/dotfiles)" = "https://github.com/Sonny93/dotfiles" ]; then
-        echo "OK: GitHub SSH remotes rewritten to HTTPS"
+        ok "GitHub SSH remotes rewritten to HTTPS"
     else
-        echo "WARN: GitHub SSH remotes not rewritten to HTTPS, run 'just git'"
+        warn "GitHub SSH remotes not rewritten to HTTPS, run 'just git'"
     fi
     if grep -q "path = {{dotfiles}}/.gitconfig" {{home}}/.gitconfig 2>/dev/null; then
-        echo "OK: ~/.gitconfig includes the repo config"
+        ok "~/.gitconfig includes the repo config"
     else
-        echo "WARN: ~/.gitconfig does not include the repo config, run 'just git'"
+        warn "~/.gitconfig does not include the repo config, run 'just git'"
     fi
     if [ -f {{home}}/.gitconfig.local ]; then
-        echo "OK: ~/.gitconfig.local present"
+        ok "~/.gitconfig.local present"
     else
-        echo "INFO: no ~/.gitconfig.local, git identity is set per repo"
+        info "no ~/.gitconfig.local, git identity is set per repo"
     fi
     if [ "$(git -C {{dotfiles}} config core.hooksPath)" = "{{dotfiles}}/githooks" ]; then
-        echo "OK: git hooks wired"
+        ok "git hooks wired"
     else
-        echo "WARN: git hooks not wired, run 'just git'"
+        warn "git hooks not wired, run 'just git'"
     fi
     missing_tools="$(mise ls --global --missing)"
     if [ -z "$missing_tools" ]; then
-        echo "OK: every mise tool installed"
+        ok "every mise tool installed"
     else
-        echo "WARN: mise tools missing, run 'just mise':"
+        warn "mise tools missing, run 'just mise':"
         echo "$missing_tools"
     fi
 

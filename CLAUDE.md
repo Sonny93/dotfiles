@@ -40,4 +40,4 @@ Servers and dev machines receive only the public key. Git over HTTPS through `gh
 ## Conventions
 
 - README in French; Justfile descriptions and messages in English.
-- Each recipe has a one-line `# description` comment above it (shown by `just`), a `#!/usr/bin/env bash` body, and doctors print `OK:` / `WARN:` / `INFO:` lines that name the recipe to run.
+- Each recipe has a one-line `# description` comment above it (shown by `just`), a `#!/usr/bin/env bash` body, and doctors print `OK` / `WARN` / `INFO` lines through `ok` / `warn` / `info` from `scripts/status.sh`, naming the recipe to run.
