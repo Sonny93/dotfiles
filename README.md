@@ -6,7 +6,7 @@ zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, mach
 |---|---|---|
 | **Windows 11** | Tabby + Bitwarden (agent SSH) + `~/.ssh/config` : on se connecte aux autres machines depuis là | Tabby ouvre la connexion par défaut |
 | **XPS** (Debian) | Tout ce qu'a la machine de dev + Tabby + Bitwarden (agent SSH) + `~/.ssh/config` | `just doctor-dev` + Tabby ouvre la connexion par défaut |
-| **Machine de dev** (Debian) | Shell + tous les outils mise + git + `gh` | `just doctor-dev` |
+| **Machine de dev** (Debian) | Shell + tous les outils mise + git + `gh` + config Claude Code | `just doctor-dev` |
 | **Serveur / VPS** (Debian) | Shell seulement. Pas de clé privée, pas de compte GitHub, rien à voler | `just doctor-server` |
 
 ## Sommaire
@@ -22,6 +22,7 @@ zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, mach
 - [Commandes](#commandes)
 - [Shell](#shell)
 - [Tabby](#tabby)
+- [Claude Code](#claude-code)
 - [Sécurité](#sécurité)
 - [MOTD](#motd)
 
@@ -34,6 +35,8 @@ zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, mach
 | Réglages Tabby (thème, police, raccourcis) | `tabby/config.yaml` | Oui |
 | Identité git | Chaque repo (`.git/config`), ou `~/.gitconfig.local` en option | Jamais |
 | Accès GitHub | Jeton `gh` sur chaque machine de dev (le XPS compris) | Jamais |
+| Config Claude Code (CLAUDE.md, agents, skills, réglages de base) | `claude/` | Oui |
+| Identifiants Claude Code, jetons MCP, mémoire, historique | `~/.claude/` et `~/.claude.json` sur chaque machine de dev | Jamais |
 
 Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
@@ -114,7 +117,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `git` (config + hook gitleaks), `gh-auth`, puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `git` (config + hook gitleaks), `gh-auth`, `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -225,13 +228,14 @@ exec zsh
 
 | Commande | Rôle | Dev / XPS | Serveur |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `shell`, `mise`, `git`, `gh-auth`, `doctor-dev` | ✓ | |
+| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `shell`, `mise`, `git`, `gh-auth`, `claude`, `doctor-dev` | ✓ | |
 | `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
 | `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
 | `just git` | Config git du repo + hook gitleaks | ✓ | |
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
+| `just claude` | Lier la config Claude Code (CLAUDE.md, agents, skills) et fusionner les réglages de base | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
 | `just doctor-dev` | Vérifier toute la machine de dev (lance aussi `doctor-server`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
@@ -257,6 +261,21 @@ Le script :
 4. garde le profil par défaut s'il pointe vers un `Host` de `~/.ssh/config`, sinon demande lequel ouvrir au lancement (un `Host` ou le shell local).
 
 Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/config` et les affiche sous la forme `mon-serveur (.ssh/config)`.
+
+## Claude Code
+
+`claude/` contient la config utilisateur de Claude Code, appliquée par `just claude` (lancé par `just dev`) :
+
+- **Liés** : `claude/CLAUDE.md`, chaque fichier de `claude/agents/` et chaque dossier de `claude/skills/` sont liés un par un dans `~/.claude/` (`~/.claude/CLAUDE.md`, `~/.claude/agents/<nom>.md`, `~/.claude/skills/<nom>`). Le reste de `~/.claude/skills/` (`synced/`, skills installés par `npx skills`, plugins) n'est pas touché.
+- **Fusionné** : `claude/settings.json` est une base fusionnée (jq) dans `~/.claude/settings.json`, jamais liée : Claude Code réécrit ce fichier lui-même. Les clés du repo l'emportent, les clés propres à la machine (`model`, `theme`…) restent.
+- `claude/statusline.sh` est référencé directement par les réglages de base : rien à installer.
+
+Avant de remplacer quoi que ce soit, `just claude` déplace l'existant dans `~/.claude/backups/dotfiles-<date>/` (même chemin relatif) et affiche chaque sauvegarde. Rien n'est supprimé, sauf les liens vers le repo devenus orphelins (skill ou agent retiré du repo).
+
+- **Retirer un réglage** : la fusion ajoute et écrase seulement. Une clé retirée de `claude/settings.json` se retire à la main de `~/.claude/settings.json`.
+- **Ajouter un skill ou un agent** : le créer dans `claude/skills/<nom>/SKILL.md` ou `claude/agents/<nom>.md`, puis `just claude`.
+- **Hors repo** : les skills installés par `npx skills` ou par des plugins restent hors du repo.
+- Seuls les réglages indépendants de la machine et non sensibles vont dans `claude/settings.json`.
 
 ## Sécurité
 
