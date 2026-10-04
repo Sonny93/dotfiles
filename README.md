@@ -71,11 +71,13 @@ Le repo est public : on le clone en HTTPS, sans clé ni compte.
    [Environment]::SetEnvironmentVariable("HOME", $env:USERPROFILE, "User")
    ```
 
-5. Installer **Tabby**, le lancer une fois, le fermer, puis récupérer les réglages :
+5. Installer **Tabby**, le lancer une fois, le fermer complètement (icône de la barre des tâches comprise), puis, depuis Windows Terminal (pas depuis Tabby) :
 
    ```powershell
-   curl.exe -o "$env:APPDATA\tabby\config.yaml" https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/config.yaml
+   irm https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/install.ps1 | iex
    ```
+
+   Voir [Tabby](#tabby) pour ce que fait le script.
 
 6. Vérifier : `ssh-add -L` affiche la clé Bitwarden, et Tabby liste les connexions sous la forme `mon-serveur (.ssh/config)`.
 
@@ -121,14 +123,14 @@ Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
-6. Tabby : installer Tabby, puis `just tabby`.
-7. Connexions : créer `~/.ssh/config` avec le contenu de la note **ssh config**.
+6. Connexions : créer `~/.ssh/config` avec le contenu de la note **ssh config**.
+7. Tabby : installer Tabby, le lancer une fois, le fermer complètement, puis `just tabby` depuis un autre terminal que Tabby.
 8. Vérifier : `just doctor`.
 
 ### Ajouter une connexion
 
 1. Donner la clé publique au serveur (voir [Serveur / VPS](#installer)).
-2. Ajouter le `Host` dans la note **ssh config** de Bitwarden, puis dans `~/.ssh/config` de chaque PC.
+2. Ajouter le `Host` dans la note **ssh config** de Bitwarden, puis dans `~/.ssh/config` de chaque PC. Tabby l'affiche au prochain lancement.
 
 ### Mettre à jour un PC
 
@@ -139,6 +141,8 @@ just shell
 just mise
 exec zsh
 ```
+
+Si `tabby/config.yaml` a changé : réinstaller Tabby (voir [Tabby](#tabby)).
 
 ## Serveur / VPS
 
@@ -191,7 +195,7 @@ exec zsh
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
 | `just git` | Config git du repo + hook gitleaks | ✓ | |
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
-| `just tabby` | Réglages Tabby initiaux, n'écrase jamais une config existante | ✓ | |
+| `just tabby` | Installer la config Tabby du repo (Tabby fermé), en gardant profil par défaut et hosts connus | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
 | `just doctor` | Vérifier tout le PC (lance aussi `doctor-server`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
@@ -202,11 +206,21 @@ zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, synt
 
 ## Tabby
 
-`tabby/config.yaml` ne contient que ce qui diffère des valeurs par défaut de Tabby. C'est la référence : on le modifie dans le repo, puis on reporte à la main dans la config locale, Tabby fermé (`~/.config/tabby/config.yaml` sous Debian, `%APPDATA%\tabby\config.yaml` sous Windows).
+`tabby/config.yaml` ne contient que ce qui diffère des valeurs par défaut de Tabby. C'est la référence : un réglage se change dans le repo (commit + push), puis on réinstalle sur chaque PC. Un réglage changé dans l'interface de Tabby est perdu à la prochaine installation.
 
-Tabby réécrit son fichier à chaque sauvegarde (commentaires supprimés, valeurs par défaut ajoutées) : ne jamais recopier la config locale vers le repo.
+Installer ou mettre à jour, Tabby **fermé**, depuis un autre terminal :
 
-Les connexions ne passent pas par Tabby : il les lit dans `~/.ssh/config`.
+- **Windows** : `irm https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/install.ps1 | iex` (`tabby/install.ps1`)
+- **Debian** : `cd ~/dotfiles && git pull && just tabby` (`tabby/install.sh`)
+
+Le script :
+
+1. sauvegarde la config locale (`config.backup-<date>.yaml`, à côté) ;
+2. la remplace par celle du repo ;
+3. garde les hosts déjà connus (pas de nouvelle validation des empreintes) ;
+4. garde le profil par défaut s'il pointe vers un `Host` de `~/.ssh/config`, sinon demande lequel ouvrir au lancement (un `Host` ou le shell local).
+
+Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/config` et les affiche sous la forme `mon-serveur (.ssh/config)`.
 
 ## Sécurité
 

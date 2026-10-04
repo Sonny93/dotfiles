@@ -32,7 +32,7 @@ Servers receive only the public key. Git over HTTPS through `gh` on PCs; servers
 
 ## Invariants
 
-- **Tabby**: `tabby/config.yaml` holds only overrides of Tabby's defaults, with comments explaining each. Edit it by hand, then port changes into local configs by hand with Tabby closed. Tabby rewrites its own file, so the repo stays the source of truth.
+- **Tabby**: `tabby/config.yaml` holds only overrides of Tabby's defaults, with comments explaining each. Settings change in the repo, then reach each machine through `tabby/install.ps1` (Windows one-liner) or `tabby/install.sh` (`just tabby`): back up, replace with the repo config, carry over `ssh.knownHosts` and an `openssh-config:` default profile. Both scripts implement the same behavior; a change to one lands in the other in the same change. Tabby must be closed while they run.
 - **mise**: one `mise/config.toml` for every machine. Servers install the subset in the Justfile's `shell_tools` variable; PCs install everything with `just mise`.
 - **Docs in sync**: any Justfile change updates `README.md` in the same change (Commandes table + the affected install steps).
 
