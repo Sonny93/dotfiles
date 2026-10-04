@@ -3,7 +3,7 @@
 Personal setup for zsh, git, mise, Starship and Tabby, split into three roles. A machine can hold several (the Debian laptop is both client and dev).
 
 - **Client**: Tabby + Bitwarden SSH agent + `~/.ssh/config`; the user connects to other machines from here. Windows 11 (no git, no clone: files come from the GitHub raw URL) and a Debian laptop. Set up by `tabby/install.ps1` / `tabby/install.sh`, never by `just`.
-- **Dev machine**: shell + every mise tool + git hooks + `gh`. This machine is one: reached over SSH from the clients, with no SSH agent and no Tabby of its own.
+- **Dev machine**: shell + every mise tool + git hooks + `gh`. This machine is one: reached over SSH from the clients, with no key and no Tabby of its own. To reach servers it borrows the client's Bitwarden agent through `ForwardAgent`, enabled on its own `Host` in the client's `~/.ssh/config`, and lists the servers in a local `~/.ssh/config`.
 - **Server / VPS**: shell only (`just shell`).
 
 ## Setting up a machine
@@ -28,7 +28,7 @@ The repo is public. It holds only what grants no access and reveals nothing abou
 | Git identity | Each repo's `.git/config`; `~/.gitconfig.local` optional |
 | GitHub token | `gh` on dev machines only |
 
-Servers and dev machines receive only the public key. Git over HTTPS through `gh` on dev machines; servers pull anonymously over HTTPS and stay without `gh` or agent forwarding.
+Servers and dev machines receive only the public key. Git over HTTPS through `gh` on dev machines; servers pull anonymously over HTTPS and stay without `gh`. Agent forwarding targets dev machines only, never servers.
 
 ## Invariants
 
