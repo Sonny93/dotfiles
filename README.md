@@ -17,6 +17,7 @@ zsh, git, mise, Starship et Tabby, répartis en trois rôles. Une machine peut e
   - [Debian](#debian)
   - [Ajouter une connexion](#ajouter-une-connexion)
 - [Machine de dev](#machine-de-dev)
+  - [Gérer des serveurs depuis la machine de dev](#gérer-des-serveurs-depuis-la-machine-de-dev)
 - [Serveur / VPS](#serveur--vps)
 - [Commandes](#commandes)
 - [Shell](#shell)
@@ -144,6 +145,22 @@ Prérequis : le repo cloné dans `~/dotfiles` (étapes 1 à 3 de [Machine de dev
 
 5. Vérifier : `just doctor-dev`.
 
+### Gérer des serveurs depuis la machine de dev
+
+Pour enchaîner poste client → machine de dev → serveur (par exemple Claude Code sur la machine de dev qui intervient sur un VPS), la machine de dev emprunte l'agent Bitwarden du poste client au lieu d'avoir sa propre clé :
+
+1. Dans la note **ssh config** et `~/.ssh/config` des postes clients, activer le transfert d'agent sur le `Host` de la machine de dev, et seulement lui :
+
+   ```
+   Host ma-machine-de-dev
+       HostName 192.168.1.20
+       ForwardAgent yes
+   ```
+
+2. Sur la machine de dev, créer `~/.ssh/config` avec les serveurs à gérer (la même note, sans la machine de dev elle-même).
+
+Chaque connexion lancée depuis la machine de dev demande une validation dans Bitwarden, sur le poste client. Ça ne marche que tant qu'une session SSH depuis le poste client est ouverte.
+
 ### Mettre à jour
 
 ```sh
@@ -183,7 +200,7 @@ exec zsh
 
    `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
 
-À ne jamais faire sur un serveur : y mettre la clé privée, s'y connecter à GitHub, ou activer `ForwardAgent` vers lui (root sur le serveur pourrait utiliser ta clé tant que tu es connecté).
+À ne jamais faire sur un serveur : y mettre la clé privée, s'y connecter à GitHub, ou activer `ForwardAgent` vers lui (root sur le serveur pourrait utiliser ta clé tant que tu es connecté). Le transfert d'agent est réservé aux machines de dev à toi.
 
 ### Mettre à jour un serveur
 
