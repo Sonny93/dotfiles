@@ -93,7 +93,12 @@ gh-auth:
         echo "gh already authenticated:"
         gh auth status
     fi
-    gh auth setup-git
+    gh config set git_protocol https
+    for host in github.com gist.github.com; do
+        git config --global --replace-all "credential.https://$host.helper" ''
+        git config --global --add "credential.https://$host.helper" '!gh auth git-credential'
+    done
+    echo "git uses gh for GitHub over HTTPS."
 
 # Check the shell setup (servers and dev machines)
 doctor-server:
@@ -145,6 +150,16 @@ doctor-dev: doctor-server
         echo "OK: gh authenticated"
     else
         echo "WARN: gh not authenticated, run 'just gh-auth'"
+    fi
+    if [ "$(git config --global --get-all credential.https://github.com.helper | tail -n 1)" = '!gh auth git-credential' ] && [ "$(gh config get git_protocol)" = "https" ]; then
+        echo "OK: git and gh use HTTPS through gh"
+    else
+        echo "WARN: git credential helper or gh protocol not set, run 'just gh-auth'"
+    fi
+    if [ "$(git ls-remote --get-url git@github.com:Sonny93/dotfiles)" = "https://github.com/Sonny93/dotfiles" ]; then
+        echo "OK: GitHub SSH remotes rewritten to HTTPS"
+    else
+        echo "WARN: GitHub SSH remotes not rewritten to HTTPS, run 'just git'"
     fi
     if grep -q "path = {{dotfiles}}/.gitconfig" {{home}}/.gitconfig 2>/dev/null; then
         echo "OK: ~/.gitconfig includes the repo config"
