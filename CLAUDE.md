@@ -1,0 +1,42 @@
+# dotfiles
+
+Personal setup for zsh, git, mise, Starship and Tabby, across three kinds of machines:
+
+- **Windows 11 host**: Tabby + Bitwarden + `~/.ssh/config` only. No git, no clone of this repo. Files reach it by `scp` from a Debian PC or from the GitHub raw URL.
+- **Debian 13 PC**: everything. This machine is one, and it is also an SSH target from the Windows host.
+- **Server / VPS**: shell only (`just shell`).
+
+## Setting up a machine
+
+Claude Code runs on this machine; the user drives the other machines and pastes back output.
+
+1. Identify the machine kind, then follow its section of `README.md` (PC → Windows 11 or Debian 13, or Serveur / VPS) step by step. The README is the procedure; follow it as written.
+2. For Windows steps and anything on a remote machine, give the user ready-to-paste commands (PowerShell 7 on Windows) and read the output they send back.
+3. Done when `just doctor` (PC) or `just doctor-server` (server) prints only `OK`/`INFO` lines on that machine.
+
+`just` lists the recipes; the doctors report what is missing.
+
+## Public repo boundary
+
+The repo is public. It holds only what grants no access and reveals nothing about the user's network. Everything else lives outside:
+
+| Material | Lives in |
+|---|---|
+| SSH private key | Bitwarden, served by its SSH agent on PCs only |
+| Hosts, IPs, `~/.ssh/config` | Bitwarden secure note + `~/.ssh/config` on each PC |
+| Tabby profiles, knownHosts | Local Tabby config on each machine |
+| Git identity | Each repo's `.git/config`; `~/.gitconfig.local` optional |
+| GitHub token | `gh` on PCs only |
+
+Servers receive only the public key. Git over HTTPS through `gh` on PCs; servers pull anonymously over HTTPS and stay without `gh` or agent forwarding.
+
+## Invariants
+
+- **Tabby**: `tabby/config.yaml` holds only overrides of Tabby's defaults, with comments explaining each. Edit it by hand, then port changes into local configs by hand with Tabby closed. Tabby rewrites its own file, so the repo stays the source of truth.
+- **mise**: one `mise/config.toml` for every machine. Servers install the subset in the Justfile's `shell_tools` variable; PCs install everything with `just mise`.
+- **Docs in sync**: any Justfile change updates `README.md` in the same change (Commandes table + the affected install steps).
+
+## Conventions
+
+- README in French; Justfile descriptions and messages in English.
+- Each recipe has a one-line `# description` comment above it (shown by `just`), a `#!/usr/bin/env bash` body, and doctors print `OK:` / `WARN:` / `INFO:` lines that name the recipe to run.
