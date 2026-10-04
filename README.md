@@ -1,24 +1,24 @@
 # dotfiles
 
-zsh, git, mise, Starship et Tabby, répartis en trois rôles. Une machine peut en cumuler plusieurs (un PC Debian peut être poste client et machine de dev).
+zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, machine de dev et serveur.
 
-| Rôle | Contenu | Vérifier avec |
+| Machine | Contenu | Vérifier avec |
 |---|---|---|
-| **Poste client** (Windows 11, Debian) | Tabby + Bitwarden (agent SSH) + `~/.ssh/config` : on se connecte aux autres machines depuis là | Tabby ouvre la connexion par défaut |
+| **Windows 11** | Tabby + Bitwarden (agent SSH) + `~/.ssh/config` : on se connecte aux autres machines depuis là | Tabby ouvre la connexion par défaut |
+| **XPS** (Debian) | Tout ce qu'a la machine de dev + Tabby + Bitwarden (agent SSH) + `~/.ssh/config` | `just doctor-dev` + Tabby ouvre la connexion par défaut |
 | **Machine de dev** (Debian) | Shell + tous les outils mise + git + `gh` | `just doctor-dev` |
 | **Serveur / VPS** (Debian) | Shell seulement. Pas de clé privée, pas de compte GitHub, rien à voler | `just doctor-server` |
 
 ## Sommaire
 
 - [Où vit quoi](#où-vit-quoi)
-- [Poste client](#poste-client)
-  - [Une seule fois : la clé SSH](#une-seule-fois--la-clé-ssh)
-  - [Windows 11](#windows-11)
-  - [Debian](#debian)
-  - [Ajouter une connexion](#ajouter-une-connexion)
+- [Une seule fois : la clé SSH](#une-seule-fois--la-clé-ssh)
+- [Windows 11](#windows-11)
 - [Machine de dev](#machine-de-dev)
   - [Gérer des serveurs depuis la machine de dev](#gérer-des-serveurs-depuis-la-machine-de-dev)
+- [XPS](#xps)
 - [Serveur / VPS](#serveur--vps)
+- [Ajouter une connexion](#ajouter-une-connexion)
 - [Commandes](#commandes)
 - [Shell](#shell)
 - [Tabby](#tabby)
@@ -29,17 +29,15 @@ zsh, git, mise, Starship et Tabby, répartis en trois rôles. Une machine peut e
 
 | Quoi | Où | Dans le repo |
 |---|---|---|
-| Clé SSH privée | Bitwarden, servie par son agent SSH sur les postes clients | Jamais |
-| Connexions SSH | `~/.ssh/config` sur chaque poste client, copie dans une note Bitwarden | Jamais |
+| Clé SSH privée | Bitwarden, servie par son agent SSH sur Windows 11 et le XPS | Jamais |
+| Connexions SSH | `~/.ssh/config` sur Windows 11 et le XPS, copie dans une note Bitwarden | Jamais |
 | Réglages Tabby (thème, police, raccourcis) | `tabby/config.yaml` | Oui |
 | Identité git | Chaque repo (`.git/config`), ou `~/.gitconfig.local` en option | Jamais |
-| Accès GitHub | Jeton `gh` sur chaque machine de dev | Jamais |
+| Accès GitHub | Jeton `gh` sur chaque machine de dev (le XPS compris) | Jamais |
 
 Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
-## Poste client
-
-### Une seule fois : la clé SSH
+## Une seule fois : la clé SSH
 
 1. Dans Bitwarden, créer un élément **Clé SSH** (Ed25519). La clé privée ne quittera jamais le coffre.
 2. Créer une note sécurisée **ssh config** avec la liste des connexions, au format `~/.ssh/config` :
@@ -56,7 +54,7 @@ Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
    Pas de `IdentityFile` : `ssh` et Tabby demandent la clé à l'agent Bitwarden.
 
-### Windows 11
+## Windows 11
 
 1. Installer **Bitwarden Desktop**, se connecter, puis dans les réglages activer **l'agent SSH**.
 2. Couper l'agent SSH de Windows, qui entre en conflit avec celui de Bitwarden (PowerShell **admin**) :
@@ -81,30 +79,7 @@ Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
 6. Vérifier : `ssh-add -L` affiche la clé Bitwarden, et Tabby ouvre la connexion choisie au lancement.
 
-### Debian
-
-Prérequis : le repo cloné dans `~/dotfiles` (étapes 1 à 3 de [Machine de dev](#machine-de-dev)).
-
-1. Installer **Bitwarden Desktop** en `.deb` (pas en Flatpak ni Snap : l'agent SSH n'y crée pas son socket), se connecter, activer **l'agent SSH**. Puis l'annoncer à toute la session graphique (Tabby compris), et se déconnecter / reconnecter :
-
-   ```sh
-   mkdir -p ~/.config/environment.d
-   echo 'SSH_AUTH_SOCK=${HOME}/.bitwarden-ssh-agent.sock' > ~/.config/environment.d/bitwarden-ssh-agent.conf
-   ```
-
-2. Créer `~/.ssh/config` avec le contenu de la note **ssh config**.
-3. Installer **Tabby**, le lancer une fois, le fermer complètement, puis depuis un autre terminal :
-
-   ```sh
-   bash ~/dotfiles/tabby/install.sh
-   ```
-
-4. Vérifier : `ssh-add -L` affiche la clé Bitwarden, et Tabby ouvre la connexion choisie au lancement.
-
-### Ajouter une connexion
-
-1. Donner la clé publique au serveur (voir [Serveur / VPS](#serveur--vps)).
-2. Ajouter le `Host` dans la note **ssh config** de Bitwarden, puis dans `~/.ssh/config` de chaque poste client. Tabby l'affiche au prochain lancement.
+Mise à jour : voir [Tabby](#tabby).
 
 ## Machine de dev
 
@@ -133,43 +108,68 @@ Prérequis : le repo cloné dans `~/dotfiles` (étapes 1 à 3 de [Machine de dev
    exec zsh
    ```
 
-4. Outils, git et accès GitHub :
+4. Tout le reste :
 
    ```sh
-   just mise
-   just git
-   just gh-auth
+   just dev
    ```
+
+   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `git` (config + hook gitleaks), `gh-auth`, puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
-5. Vérifier : `just doctor-dev`.
-
 ### Gérer des serveurs depuis la machine de dev
 
-Pour enchaîner poste client → machine de dev → serveur (par exemple Claude Code sur la machine de dev qui intervient sur un VPS), la machine de dev emprunte l'agent Bitwarden du poste client au lieu d'avoir sa propre clé :
+Pour enchaîner Windows 11 ou XPS → machine de dev → serveur (par exemple Claude Code sur la machine de dev qui intervient sur un VPS), la machine de dev emprunte l'agent Bitwarden du client au lieu d'avoir sa propre clé :
 
-1. Dans la note **ssh config** et `~/.ssh/config` des postes clients, activer le transfert d'agent sur le `Host` de la machine de dev, et seulement lui :
+1. Dans la note **ssh config** et `~/.ssh/config` de Windows 11 et du XPS, activer le transfert d'agent sur le `Host` de la machine de dev, et seulement lui :
 
    ```
    Host ma-machine-de-dev
-       HostName 192.168.1.20
+       HostName 203.0.113.20
        ForwardAgent yes
    ```
 
 2. Sur la machine de dev, créer `~/.ssh/config` avec les serveurs à gérer (la même note, sans la machine de dev elle-même).
 
-Chaque connexion lancée depuis la machine de dev demande une validation dans Bitwarden, sur le poste client. Ça ne marche que tant qu'une session SSH depuis le poste client est ouverte.
+Chaque connexion lancée depuis la machine de dev demande une validation dans Bitwarden, sur le client. Ça ne marche que tant qu'une session SSH depuis le client est ouverte.
 
 ### Mettre à jour
 
 ```sh
-cd ~/dotfiles && git pull
-just apt
-just shell
-just mise
+cd ~/dotfiles && git pull && just dev
 exec zsh
 ```
+
+## XPS
+
+Le XPS est à la fois machine de dev et client.
+
+1. Installer comme [Machine de dev](#machine-de-dev), en lançant `just xps` (alias de `just dev`) à l'étape 4.
+2. Installer **Bitwarden Desktop** en `.deb` (pas en Flatpak ni Snap : l'agent SSH n'y crée pas son socket), se connecter, activer **l'agent SSH**. Puis l'annoncer à toute la session graphique (Tabby compris), et se déconnecter / reconnecter :
+
+   ```sh
+   mkdir -p ~/.config/environment.d
+   echo 'SSH_AUTH_SOCK=${HOME}/.bitwarden-ssh-agent.sock' > ~/.config/environment.d/bitwarden-ssh-agent.conf
+   ```
+
+3. Créer `~/.ssh/config` avec le contenu de la note **ssh config**.
+4. Installer **Tabby**, le lancer une fois, le fermer complètement, puis depuis un autre terminal :
+
+   ```sh
+   bash ~/dotfiles/tabby/install.sh
+   ```
+
+5. Vérifier : `ssh-add -L` affiche la clé Bitwarden, et Tabby ouvre la connexion choisie au lancement.
+
+### Mettre à jour
+
+```sh
+cd ~/dotfiles && git pull && just xps
+exec zsh
+```
+
+Tabby : voir [Tabby](#tabby).
 
 ## Serveur / VPS
 
@@ -177,13 +177,13 @@ exec zsh
 
 1. **Donner la clé publique au serveur.** C'est la serrure, pas la clé : elle peut être lue sans risque.
    - VPS neuf : coller la clé publique (copiée depuis Bitwarden) dans le formulaire de l'hébergeur.
-   - Serveur existant, depuis un poste client (PowerShell ou Debian), avec une connexion par mot de passe :
+   - Serveur existant, depuis Windows 11 (PowerShell) ou le XPS, avec une connexion par mot de passe :
 
      ```sh
      ssh-add -L | ssh user@host "umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
      ```
 
-2. Ajouter la connexion sur les postes clients (voir [Ajouter une connexion](#ajouter-une-connexion)).
+2. Ajouter la connexion (voir [Ajouter une connexion](#ajouter-une-connexion)).
 3. Sur le serveur :
 
    ```sh
@@ -195,28 +195,38 @@ exec zsh
    mise exec just -- just shell
    chsh -s "$(command -v zsh)"
    exec zsh
-   just doctor-server
    ```
 
-   `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
+4. Tout le reste :
+
+   ```sh
+   just server
+   ```
+
+   `just server` enchaîne `apt`, `shell` et `doctor-server`. `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
 
 À ne jamais faire sur un serveur : y mettre la clé privée, s'y connecter à GitHub, ou activer `ForwardAgent` vers lui (root sur le serveur pourrait utiliser ta clé tant que tu es connecté). Le transfert d'agent est réservé aux machines de dev à toi.
 
 ### Mettre à jour un serveur
 
 ```sh
-cd ~/dotfiles && git pull
-just apt
-just shell
+cd ~/dotfiles && git pull && just server
 exec zsh
 ```
 
+## Ajouter une connexion
+
+1. Donner la clé publique au serveur (voir [Serveur / VPS](#serveur--vps)).
+2. Ajouter le `Host` dans la note **ssh config** de Bitwarden, puis dans `~/.ssh/config` de Windows 11 et du XPS (et de la machine de dev si elle doit joindre ce serveur). Tabby l'affiche au prochain lancement.
+
 ## Commandes
 
-`just` ou `just help` liste les commandes. Les postes clients n'en utilisent aucune : Tabby passe par son script (voir [Tabby](#tabby)).
+`just` ou `just help` liste les commandes. Windows 11 n'en utilise aucune : Tabby passe par son script (voir [Tabby](#tabby)).
 
-| Commande | Rôle | Dev | Serveur |
+| Commande | Rôle | Dev / XPS | Serveur |
 |---|---|---|---|
+| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `shell`, `mise`, `git`, `gh-auth`, `doctor-dev` | ✓ | |
+| `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
 | `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
@@ -232,12 +242,12 @@ zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, synt
 
 ## Tabby
 
-`tabby/config.yaml` ne contient que ce qui diffère des valeurs par défaut de Tabby. C'est la référence : un réglage se change dans le repo (commit + push), puis on réinstalle sur chaque poste client. Un réglage changé dans l'interface de Tabby est perdu à la prochaine installation.
+`tabby/config.yaml` ne contient que ce qui diffère des valeurs par défaut de Tabby. C'est la référence : un réglage se change dans le repo (commit + push), puis on réinstalle sur Windows 11 et le XPS. Un réglage changé dans l'interface de Tabby est perdu à la prochaine installation.
 
 Installer ou mettre à jour, Tabby **fermé**, depuis un autre terminal :
 
 - **Windows** : `irm https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/install.ps1 | iex` (`tabby/install.ps1`)
-- **Debian** : `cd ~/dotfiles && git pull && bash tabby/install.sh` (`tabby/install.sh`)
+- **XPS** : `cd ~/dotfiles && git pull && bash tabby/install.sh` (`tabby/install.sh`)
 
 Le script :
 
@@ -252,10 +262,10 @@ Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/conf
 
 Le repo est public et ne contient **jamais** de secret, d'identité ni d'infos sur les serveurs :
 
-- **Clé SSH** : seulement dans Bitwarden, sur les postes clients. Coffre verrouillé = aucune connexion possible. Une machine perdue = se déconnecter de Bitwarden dessus.
-- **Connexions** : dans Bitwarden et `~/.ssh/config` des postes clients, jamais dans le repo.
+- **Clé SSH** : seulement dans Bitwarden, sur Windows 11 et le XPS. Coffre verrouillé = aucune connexion possible. Une machine perdue = se déconnecter de Bitwarden dessus.
+- **Connexions** : dans Bitwarden et `~/.ssh/config` de Windows 11 et du XPS, jamais dans le repo.
 - **Identité git** : définie dans chaque repo. `.gitconfig` inclut aussi `~/.gitconfig.local`, optionnel et propre à chaque machine, pour une identité par défaut.
-- **GitHub** : jeton `gh` sur les machines de dev uniquement. Il va dans le trousseau système s'il y en a un, sinon en clair dans `~/.config/gh/hosts.yml`.
+- **GitHub** : jeton `gh` sur les machines de dev uniquement (le XPS compris). Il va dans le trousseau système s'il y en a un, sinon en clair dans `~/.config/gh/hosts.yml`.
 - **gitleaks** tourne en pre-commit (`githooks/pre-commit`, activé par `just git`) et bloque tout secret qui tenterait d'entrer.
 
 ## MOTD

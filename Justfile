@@ -9,6 +9,18 @@ default: help
 help:
     @just --list --unsorted
 
+# Set up or update a dev machine (the XPS included)
+dev: apt shell mise git gh-auth doctor-dev
+    #!/usr/bin/env bash
+    echo "Dev setup done. Reload the shell with 'exec zsh'."
+
+alias xps := dev
+
+# Set up or update a server
+server: apt shell doctor-server
+    #!/usr/bin/env bash
+    echo "Server setup done. Reload the shell with 'exec zsh'."
+
 # Upgrade system packages
 apt:
     #!/usr/bin/env bash
