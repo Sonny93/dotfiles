@@ -1,9 +1,55 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
+shell_tools := 'starship fzf just'
 
-apply: gitconfig zshrc mise-config tools starship tabby githooks
+[private]
+default: help
 
-gitconfig:
+# List available targets
+help:
+    @just --list --unsorted
+
+# Upgrade system packages
+apt:
+    #!/usr/bin/env bash
+    set -e
+    sudo apt update
+    sudo apt full-upgrade
+    sudo apt autoremove
+
+# Set up zsh, Starship and the mise tools the shell needs
+shell:
+    #!/usr/bin/env bash
+    set -e
+    if ! command -v zsh >/dev/null 2>&1; then
+        echo "ERROR: zsh is not installed. Run 'sudo apt install zsh' first."
+        exit 1
+    fi
+    mkdir -p {{home}}/.config/mise
+    ln -sf {{dotfiles}}/.zshrc {{home}}/.zshrc
+    ln -sf {{dotfiles}}/starship.toml {{home}}/.config/starship.toml
+    ln -sf {{dotfiles}}/mise/config.toml {{home}}/.config/mise/config.toml
+    mise trust {{dotfiles}}/mise/config.toml
+    mise install {{shell_tools}}
+    mise upgrade {{shell_tools}}
+    login_shell="$(getent passwd "$USER" | cut -d: -f7)"
+    if [ "$(basename "$login_shell")" != "zsh" ]; then
+        echo "Login shell is $login_shell. Make zsh the default with:"
+        echo "    chsh -s \"\$(command -v zsh)\""
+    fi
+    echo "Shell setup done."
+
+# Install or upgrade every tool from mise/config.toml
+mise:
+    #!/usr/bin/env bash
+    set -e
+    mise self-update -y
+    mise install
+    mise upgrade
+    echo "Tools installed/updated via mise."
+
+# Wire the repo git config and gitleaks hook
+git:
     #!/usr/bin/env bash
     if [ ! -f "{{home}}/.gitconfig" ]; then
         echo "# Main Git configuration" > {{home}}/.gitconfig
@@ -14,47 +60,14 @@ gitconfig:
     else
         echo "Custom .gitconfig include already present."
     fi
-
-zshrc:
-    #!/usr/bin/env bash
-    ln -sf {{dotfiles}}/.zshrc {{home}}/.zshrc
-    echo "Symlink created for .zshrc"
-
-mise-config:
-    #!/usr/bin/env bash
-    mkdir -p {{home}}/.config/mise
-    ln -sf {{dotfiles}}/mise/config.toml {{home}}/.config/mise/config.toml
-    mise trust {{dotfiles}}/mise/config.toml
-    echo "Symlink created for mise config.toml"
-
-tools:
-    #!/usr/bin/env bash
-    mise self-update -y
-    mise install
-    mise upgrade
-    echo "Tools installed/updated via mise."
-
-starship:
-    #!/usr/bin/env bash
-    mkdir -p {{home}}/.config
-    ln -sf {{dotfiles}}/starship.toml {{home}}/.config/starship.toml
-    echo "Symlink created for starship.toml"
-
-tabby:
-    #!/usr/bin/env bash
-    mkdir -p {{home}}/.config/tabby
-    if [ ! -f {{home}}/.config/tabby/config.yaml ]; then
-        cp {{dotfiles}}/tabby/config.yaml {{home}}/.config/tabby/config.yaml
-        echo "Tabby config seeded. Add SSH profiles locally in-app — never committed."
-    else
-        echo "Local Tabby config.yaml already exists, left untouched."
+    git -C {{dotfiles}} config core.hooksPath {{dotfiles}}/githooks
+    chmod +x {{dotfiles}}/githooks/pre-commit
+    echo "Git hooksPath set to {{dotfiles}}/githooks"
+    if [ ! -f "{{home}}/.gitconfig.local" ]; then
+        echo "INFO: no ~/.gitconfig.local, set the git identity per repo (or add a [user] section there for a machine default)."
     fi
 
-tabby-export:
-    #!/usr/bin/env bash
-    python3 {{dotfiles}}/scripts/tabby_export.py {{home}}/.config/tabby/config.yaml {{dotfiles}}/tabby/config.yaml
-    echo "Shared Tabby settings exported to repo, profiles/hosts stripped."
-
+# Log in to GitHub with gh and use it for git over HTTPS
 gh-auth:
     #!/usr/bin/env bash
     if [ -n "${GITHUB_TOKEN:-}" ]; then
@@ -68,23 +81,102 @@ gh-auth:
         echo "gh already authenticated:"
         gh auth status
     fi
+    gh auth setup-git
 
-githooks:
+# Seed the local Tabby config, never overwrites an existing one
+tabby:
     #!/usr/bin/env bash
-    git config core.hooksPath {{dotfiles}}/githooks
-    chmod +x {{dotfiles}}/githooks/pre-commit
-    echo "Git hooksPath set to {{dotfiles}}/githooks"
+    mkdir -p {{home}}/.config/tabby
+    if [ ! -f {{home}}/.config/tabby/config.yaml ]; then
+        cp {{dotfiles}}/tabby/config.yaml {{home}}/.config/tabby/config.yaml
+        echo "Tabby config seeded. Connections come from ~/.ssh/config, never from the repo."
+    else
+        echo "Local Tabby config.yaml already exists, left untouched."
+    fi
 
-doctor:
+# Check the shell setup (servers and PCs)
+doctor-server:
     #!/usr/bin/env bash
-    [ -n "${GITHUB_TOKEN:-}" ] && echo "WARN: GITHUB_TOKEN still exported" || echo "OK: no GITHUB_TOKEN"
-    gh auth status >/dev/null 2>&1 && echo "OK: gh authenticated" || echo "WARN: gh not authenticated, run 'just gh-auth'"
-    [ -f {{home}}/.gitconfig.local ] && echo "OK: ~/.gitconfig.local present" || echo "WARN: no ~/.gitconfig.local, git commits will fail until set"
-    command -v starship >/dev/null 2>&1 && echo "OK: starship" || echo "WARN: starship missing, run 'just tools'"
-    command -v fzf >/dev/null 2>&1 && echo "OK: fzf" || echo "WARN: fzf missing, run 'just tools'"
-    command -v gitleaks >/dev/null 2>&1 && echo "OK: gitleaks" || echo "WARN: gitleaks missing, run 'just tools'"
-    [ "$(git config core.hooksPath)" = "{{dotfiles}}/githooks" ] && echo "OK: git hooks wired" || echo "WARN: run 'just githooks'"
+    check_link() {
+        local link="$1" target="$2"
+        if [ "$(readlink "$link")" = "$target" ]; then
+            echo "OK: $link -> $target"
+        else
+            echo "WARN: $link is not a symlink to $target, run 'just shell'"
+        fi
+    }
+    if command -v zsh >/dev/null 2>&1; then
+        echo "OK: zsh installed"
+    else
+        echo "WARN: zsh missing, run 'sudo apt install zsh' then 'just shell'"
+    fi
+    login_shell="$(getent passwd "$USER" | cut -d: -f7)"
+    if [ "$(basename "$login_shell")" = "zsh" ]; then
+        echo "OK: login shell is zsh"
+    else
+        echo "WARN: login shell is $login_shell, run 'chsh -s \"\$(command -v zsh)\"'"
+    fi
+    check_link "{{home}}/.zshrc" "{{dotfiles}}/.zshrc"
+    check_link "{{home}}/.config/starship.toml" "{{dotfiles}}/starship.toml"
+    check_link "{{home}}/.config/mise/config.toml" "{{dotfiles}}/mise/config.toml"
+    if command -v mise >/dev/null 2>&1; then
+        echo "OK: mise on PATH"
+    else
+        echo "WARN: mise not on PATH, install mise then run 'just shell'"
+    fi
+    for tool in {{shell_tools}}; do
+        if mise which "$tool" >/dev/null 2>&1; then
+            echo "OK: $tool installed via mise"
+        else
+            echo "WARN: $tool missing, run 'just shell'"
+        fi
+    done
 
+# Check the full PC setup
+doctor: doctor-server
+    #!/usr/bin/env bash
+    if [ -n "${GITHUB_TOKEN:-}" ]; then
+        echo "WARN: GITHUB_TOKEN still exported, unset it and reload .zshrc"
+    else
+        echo "OK: no GITHUB_TOKEN"
+    fi
+    if gh auth status >/dev/null 2>&1; then
+        echo "OK: gh authenticated"
+    else
+        echo "WARN: gh not authenticated, run 'just gh-auth'"
+    fi
+    if grep -q "path = {{dotfiles}}/.gitconfig" {{home}}/.gitconfig 2>/dev/null; then
+        echo "OK: ~/.gitconfig includes the repo config"
+    else
+        echo "WARN: ~/.gitconfig does not include the repo config, run 'just git'"
+    fi
+    if [ -f {{home}}/.gitconfig.local ]; then
+        echo "OK: ~/.gitconfig.local present"
+    else
+        echo "INFO: no ~/.gitconfig.local, git identity is set per repo"
+    fi
+    if [ "$(git -C {{dotfiles}} config core.hooksPath)" = "{{dotfiles}}/githooks" ]; then
+        echo "OK: git hooks wired"
+    else
+        echo "WARN: git hooks not wired, run 'just git'"
+    fi
+    if mise which gitleaks >/dev/null 2>&1; then
+        echo "OK: gitleaks installed via mise"
+    else
+        echo "WARN: gitleaks missing, run 'just mise'"
+    fi
+    if [ -f {{home}}/.config/tabby/config.yaml ]; then
+        echo "OK: Tabby config present"
+    else
+        echo "WARN: no Tabby config, run 'just tabby'"
+    fi
+    if ssh-add -l >/dev/null 2>&1; then
+        echo "OK: SSH agent has keys"
+    else
+        echo "WARN: SSH agent unreachable or empty: is Bitwarden's SSH agent running?"
+    fi
+
+# Remove a leftover Oh My Zsh / Powerlevel10k install
 uninstall-omz:
     #!/usr/bin/env bash
     echo "Will remove:"
