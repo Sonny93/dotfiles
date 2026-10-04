@@ -4,7 +4,11 @@ description: >
   React conventions and architecture rules. Use when creating or editing
   components, hooks, pages, layouts, or any React/TSX file. Also use when
   asked to add a feature, refactor UI code, or generate React boilerplate.
+  Builds on typescript-conventions.
 ---
+
+Apply **typescript-conventions** first — this skill only adds what is specific to React.
+These are defaults: apply them as far as the project allows, and follow the project when its needs differ (see "Applying These Rules" in `CLAUDE.md`).
 
 # Stack
 
@@ -14,10 +18,6 @@ Projects are either React + Inertia (AdonisJS, frontend in `inertia/`) or React 
 ---
 
 # File & Module Structure
-
-- All filenames in snake_case: `user_badge.tsx`, `use_auth.ts`, `post_card.tsx`
-- One export per file — one component, one hook, one helper
-- Group by domain, not by type
 
 ## Folder structure
 
@@ -43,26 +43,13 @@ inertia/
     └── show_user/
 ```
 
-## Promotion rules
-
-A component starts in the most specific folder. It moves up only when reused:
+## Promotion path
 
 1. Used in one page → lives in `<domain>/<page>/`
 2. Used in multiple pages of the same domain → moves to `<domain>/shared/`
 3. Used across multiple domains → moves to `inertia/shared/`
 
-Never pre-emptively put something in `shared/` — wait until the second use.
-
-## Subdivide a domain folder when it exceeds ~8 files
-
-```
-inertia/posts/
-├── list/
-├── detail/
-└── shared/
-```
-
-## Max ~100 lines per file — decompose when it grows beyond that
+## Max ~100 lines per file — overrides the TypeScript default (~150); decompose when it grows beyond that
 
 ---
 
@@ -74,7 +61,7 @@ Use a `const` arrow function with implicit return:
 
 ```tsx
 // post_badge.tsx
-interface PostBadgeProps {
+type PostBadgeProps = {
   label: string
   className?: string
 }
@@ -92,7 +79,7 @@ Use a named `function` declaration with explicit return:
 
 ```tsx
 // post_card.tsx
-interface PostCardProps {
+type PostCardProps = {
   postId: string
   onDelete: (id: string) => void
 }
@@ -119,7 +106,7 @@ Always a named `function` declaration — never a const arrow. **Must use `expor
 
 ```tsx
 // inertia/pages/posts/show_post.tsx
-interface ShowPostProps {
+type ShowPostProps = {
   post: PostResource
 }
 
@@ -134,11 +121,8 @@ export default function ShowPost({ post }: Readonly<ShowPostProps>) {
 
 ## Rules
 
-- Props declared via `interface` or `type` in the same file — never in a global `types.ts`
-- Always `Readonly<Props>` — props are never mutated
-- Use `interface` for plain prop shapes, `type` when composing other types — follow global TS conventions
 - `children` typed as `React.ReactNode`
-- Always named exports — never default exports, **except** Inertia page components which must use `export default` (Inertia resolves pages by default export)
+- Inertia page components must `export default` (the exception allowed by typescript-conventions)
 - No logic inside JSX — ternaries, `.map()` with logic, nested conditions → extract to a variable or component
 - Max 2 levels of JSX nesting before extracting a sub-component
 - Never pass more than 3 props through an intermediary component — use composition or `children`
@@ -167,11 +151,11 @@ Always use `cn()` — never template literals for conditional or combined classe
 - One hook per file — even if it's 5 lines
 - Filename: `use_<name>.ts` — never `.tsx` unless the hook returns JSX (rare)
 - Hook name matches filename: `use_auth.ts` → `useAuth()`
-- Return type always explicitly typed — never rely on inference:
+- Return type is a named `type`:
 
 ```ts
 // use_posts.ts
-interface UsePostsReturn {
+type UsePostsReturn = {
   posts: Post[]
   isLoading: boolean
   error: string | null
