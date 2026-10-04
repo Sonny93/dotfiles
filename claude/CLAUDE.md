@@ -16,9 +16,19 @@ The main session (Opus) thinks; the `implementer` subagent (Sonnet) writes the c
 
 ---
 
+# Applying These Rules
+
+These rules and the convention skills (`typescript-conventions`, `adonis-conventions`, `react-conventions`) are defaults, not a contract. Apply them as far as the project allows:
+
+- When the project's own conventions, its `CLAUDE.md`, its existing code patterns, its framework or its tooling require something different, follow the project and stay consistent with it
+- Never force a 1:1 match: no rewrite, workaround or extra abstraction just to satisfy a convention the change does not need
+- When you deviate from a rule, say which one and why in one line
+
+---
+
 # Core Principles
 
-Apply these at all times, without being asked:
+Apply these by default, without being asked:
 - DRY — eliminate duplication relentlessly
 - Clean Code — code is read more than written
 - SOLID — especially Single Responsibility and Dependency Inversion
@@ -106,19 +116,3 @@ Apply these at all times, without being asked:
 # Tooling
 
 - Always use Context7 when I need library or API documentation, code generation, setup or configuration steps — without me having to explicitly ask
-
-# TypeScript
-
-- `strict: true` always — no exceptions
-- Never use `any` — use `unknown` and narrow explicitly
-- Never use non-null assertion `!` — handle the null case
-- Never use `as SomeType` to silence errors — fix the type
-- Prefer `type` over `interface` unless declaration merging is needed
-- Use discriminated unions over optional fields to model state
-- Enums are forbidden — use `as const` objects instead
-- Generic type parameters must be descriptive: `TEntity` not `T`
-- Avoid `Partial<T>` as a lazy escape hatch — model intent explicitly
-- `unknown` for external data (API responses, parsed JSON) — always validate before use
-- Co-locate types with the code that owns them — no global `types.ts` dumping ground
-- Return types on public functions are mandatory — never rely on inference for API surfaces
-- Zod (or equivalent) at every external boundary — HTTP input, env vars, config files

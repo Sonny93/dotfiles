@@ -1,3 +1,16 @@
+---
+name: adonis-conventions
+description: >
+  AdonisJS v7 backend conventions — service layer, single-action controllers,
+  transformers, VineJS validators, typed exceptions, routes, Lucid, Japa
+  tests. Use when creating or editing anything in an AdonisJS project
+  (controllers, services, models, transformers, validators, routes,
+  migrations, tests). Builds on typescript-conventions.
+---
+
+Apply **typescript-conventions** first — this skill only adds what is specific to AdonisJS.
+These are defaults: apply them as far as the project allows, and follow the project when its needs differ (see "Applying These Rules" in `CLAUDE.md`).
+
 # Stack
 
 AdonisJS v7, TypeScript strict, Node.js 24, Lucid ORM, VineJS, Japa
@@ -137,12 +150,8 @@ async render({ serialize, params }: HttpContext) {
 
 # File & Module Structure
 
-- One class per file
-- Filename matches exported class in snake_case: `UserService` → `user_service.ts`
 - Group by domain: `app/users/` holds controller + service + validators + transformer + policy
-- No barrel `index.ts` files — import from the source file directly
-- Generated barrel file `#generated/controllers` is the only exception (Adonis v7 convention)
-- Max ~150 lines per file — extract when it grows beyond that
+- `#generated/controllers` is the only barrel allowed (Adonis v7 convention)
 
 ```
 app/
@@ -175,6 +184,7 @@ app/
 
 # Validation — VineJS
 
+- VineJS is the boundary validator in Adonis — it replaces Zod for HTTP input
 - Every route with a body or query params has a dedicated VineJS validator
 - Validators live in `app/<domain>/validators/<action>_<resource>_validator.ts`
 - Validation happens in the controller — never in services
@@ -203,8 +213,7 @@ return serialize(UserTransformer.transform(user))
 
 # Error Handling
 
-- Never throw generic `Error` — create typed exceptions in `app/exceptions/`
-- Extend `Exception` from `@adonisjs/core/exceptions`
+- Typed exceptions (see typescript-conventions) live in `app/exceptions/` and extend `Exception` from `@adonisjs/core/exceptions`
 - Encode HTTP status and error code in the class:
 
 ```ts
@@ -218,7 +227,6 @@ export class UserNotFoundException extends Exception {
 
 - Services throw domain exceptions — controllers never catch and reformat
 - Use the global exception handler in `app/exceptions/handler.ts` for consistent error shapes
-- Never expose stack traces or internal error messages to HTTP responses
 
 ---
 
@@ -262,8 +270,7 @@ router.group(() => {
 - Feature tests for every controller route: happy path + main error cases
 - Unit tests for services with non-trivial business logic
 - Use `testUtils.db().withGlobalTransaction()` to isolate DB state between tests
-- Use model factories for test data — never hardcode fixture objects inline
-- Test file mirrors source: `user_service.spec.ts` next to `user_service.ts`
+- Use Lucid model factories for test data
 - Assert on transformer output shape, not raw model fields
 
 ---
