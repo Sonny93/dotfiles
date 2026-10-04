@@ -9,16 +9,6 @@ default: help
 help:
     @just --list --unsorted
 
-# Set up or update the XPS (Tabby apart: 'just tabby' with Tabby closed)
-xps: apt shell mise git gh-auth doctor
-    #!/usr/bin/env bash
-    echo "XPS setup done. Reload the shell with 'exec zsh'."
-
-# Set up or update a server
-server: apt shell doctor-server
-    #!/usr/bin/env bash
-    echo "Server setup done. Reload the shell with 'exec zsh'."
-
 # Upgrade system packages
 apt:
     #!/usr/bin/env bash
@@ -93,12 +83,7 @@ gh-auth:
     fi
     gh auth setup-git
 
-# Install the repo Tabby config, keeping the default profile and known hosts
-tabby:
-    #!/usr/bin/env bash
-    bash {{dotfiles}}/tabby/install.sh
-
-# Check the shell setup (servers and the XPS)
+# Check the shell setup (servers and dev machines)
 doctor-server:
     #!/usr/bin/env bash
     check_link() {
@@ -136,8 +121,8 @@ doctor-server:
         fi
     done
 
-# Check the full XPS setup
-doctor: doctor-server
+# Check the full dev machine setup
+doctor-dev: doctor-server
     #!/usr/bin/env bash
     if [ -n "${GITHUB_TOKEN:-}" ]; then
         echo "WARN: GITHUB_TOKEN still exported, unset it and reload .zshrc"
@@ -164,20 +149,12 @@ doctor: doctor-server
     else
         echo "WARN: git hooks not wired, run 'just git'"
     fi
-    if mise which gitleaks >/dev/null 2>&1; then
-        echo "OK: gitleaks installed via mise"
+    missing_tools="$(mise ls --global --missing)"
+    if [ -z "$missing_tools" ]; then
+        echo "OK: every mise tool installed"
     else
-        echo "WARN: gitleaks missing, run 'just mise'"
-    fi
-    if [ -f {{home}}/.config/tabby/config.yaml ]; then
-        echo "OK: Tabby config present"
-    else
-        echo "WARN: no Tabby config, run 'just tabby'"
-    fi
-    if ssh-add -l >/dev/null 2>&1; then
-        echo "OK: SSH agent has keys"
-    else
-        echo "WARN: SSH agent unreachable or empty: is Bitwarden's SSH agent running?"
+        echo "WARN: mise tools missing, run 'just mise':"
+        echo "$missing_tools"
     fi
 
 # Remove a leftover Oh My Zsh / Powerlevel10k install

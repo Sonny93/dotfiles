@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Install the repo Tabby config over the live one, carrying over the machine-local
-# default profile and known hosts. Run through `just tabby`.
+# default profile and known hosts. Run on a client machine, Tabby closed:
+#   bash ~/dotfiles/tabby/install.sh
 #
 # Optional environment overrides (used for testing):
 #   TABBY_CONFIG_PATH  live Tabby config to read and write
