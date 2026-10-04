@@ -1,3 +1,4 @@
+alias ff='fastfetch'
 alias l='ls -alF'
 alias gs='git status'
 alias drm='docker rm -f $(docker ps -aq) && docker volume rm -f $(docker volume ls -q)'
