@@ -1,0 +1,39 @@
+{
+  "enabledPlugins": {
+    "caveman@caveman": true,
+    "context7@claude-plugins-official": true,
+    "frontend-design@claude-plugins-official": true,
+    "mattpocock-skills@claude-plugins-official": true
+  },
+  "extraKnownMarketplaces": {
+    "caveman": {
+      "source": {
+        "source": "github",
+        "repo": "JuliusBrussee/caveman"
+      }
+    }
+  },
+  "statusLine": {
+    "type": "command",
+    "command": "bash \"$HOME/dotfiles/claude/statusline.sh\""
+  },
+  "permissions": {
+    "defaultMode": "auto"
+  },
+  "autoMode": {
+    "allow": [
+      "$defaults",
+      "Bash(pnpm run lint:*)",
+      "Bash(pnpm run test:*)",
+      "Bash(pnpm run typecheck:*)",
+      "Bash(pnpm run build:*)",
+      "Bash(gh repo view:*)"
+    ],
+    "soft_deny": [
+      "$defaults",
+      "Bash(pnpm publish:*)",
+      "Bash(npm publish:*)",
+      "Bash(gh release create:*)"
+    ]
+  }
+}

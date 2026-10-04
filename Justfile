@@ -10,7 +10,7 @@ help:
     @just --list --unsorted
 
 # Set up or update a dev machine (the XPS included)
-dev: apt shell mise git gh-auth doctor-dev
+dev: apt shell mise git gh-auth claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
@@ -100,18 +100,110 @@ gh-auth:
     done
     echo "git uses gh for GitHub over HTTPS."
 
+# Link the Claude Code config (CLAUDE.md, agents, skills) and merge the base settings
+claude:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    repo_config="{{dotfiles}}/claude"
+    claude_home="{{home}}/.claude"
+    base_settings="$repo_config/settings.json"
+    local_settings="$claude_home/settings.json"
+    backup_dir="$claude_home/backups/dotfiles-$(date +%Y%m%d-%H%M%S)"
+
+    require_jq() {
+        if ! command -v jq >/dev/null 2>&1; then
+            echo "ERROR: jq is not installed. Run 'just mise' first."
+            exit 1
+        fi
+    }
+
+    backup_path() {
+        local path="$1"
+        local backup_path_target="$backup_dir/${path#"$claude_home"/}"
+        mkdir -p "$(dirname "$backup_path_target")"
+        mv "$path" "$backup_path_target"
+        echo "Backed up $path -> $backup_path_target"
+    }
+
+    link_into() {
+        local target="$1" link="$2"
+        if [ "$(readlink "$link")" = "$target" ]; then
+            return 0
+        fi
+        if [ -e "$link" ] || [ -L "$link" ]; then
+            backup_path "$link"
+        fi
+        ln -s "$target" "$link"
+        echo "Linked $link -> $target"
+    }
+
+    link_repo_entries() {
+        local agent skill
+        link_into "$repo_config/CLAUDE.md" "$claude_home/CLAUDE.md"
+        for agent in "$repo_config"/agents/*.md; do
+            link_into "$agent" "$claude_home/agents/$(basename "$agent")"
+        done
+        for skill in "$repo_config"/skills/*/; do
+            skill="${skill%/}"
+            link_into "$skill" "$claude_home/skills/$(basename "$skill")"
+        done
+    }
+
+    prune_dangling_links() {
+        local directory="$1" link
+        for link in "$directory"/*; do
+            [ -L "$link" ] || continue
+            [ -e "$link" ] && continue
+            case "$(readlink "$link")" in
+                "$repo_config"/*) ;;
+                *) continue ;;
+            esac
+            rm "$link"
+            echo "Removed dangling link $link"
+        done
+    }
+
+    compute_merged_settings() {
+        if [ ! -f "$local_settings" ]; then
+            jq . "$base_settings"
+            return 0
+        fi
+        jq -s '.[0] * .[1]' "$local_settings" "$base_settings"
+    }
+
+    merge_settings() {
+        local merged temporary_file
+        merged="$(compute_merged_settings)"
+        if [ -f "$local_settings" ] && [ "$(jq -S . "$local_settings")" = "$(jq -S . <<<"$merged")" ]; then
+            echo "settings.json already up to date."
+            return 0
+        fi
+        if [ -f "$local_settings" ]; then
+            mkdir -p "$backup_dir"
+            cp -p "$local_settings" "$backup_dir/settings.json"
+            echo "Backed up $local_settings -> $backup_dir/settings.json"
+        fi
+        temporary_file="$(mktemp "$claude_home/settings.json.XXXXXX")"
+        chmod 600 "$temporary_file"
+        printf '%s\n' "$merged" >"$temporary_file"
+        mv "$temporary_file" "$local_settings"
+        echo "Merged base settings into $local_settings"
+    }
+
+    eval "$(mise env -s bash)"
+    require_jq
+    jq empty "$base_settings"
+    mkdir -p "$claude_home/agents" "$claude_home/skills"
+    link_repo_entries
+    prune_dangling_links "$claude_home/agents"
+    prune_dangling_links "$claude_home/skills"
+    merge_settings
+    echo "Claude Code config linked."
+
 # Check the shell setup (servers and dev machines)
 doctor-server:
     #!/usr/bin/env bash
     source {{dotfiles}}/scripts/status.sh
-    check_link() {
-        local link="$1" target="$2"
-        if [ "$(readlink "$link")" = "$target" ]; then
-            ok "$link -> $target"
-        else
-            warn "$link is not a symlink to $target, run 'just shell'"
-        fi
-    }
     if command -v zsh >/dev/null 2>&1; then
         ok "zsh installed"
     else
@@ -123,9 +215,9 @@ doctor-server:
     else
         warn "login shell is $login_shell, run 'chsh -s \"\$(command -v zsh)\"'"
     fi
-    check_link "{{home}}/.zshrc" "{{dotfiles}}/.zshrc"
-    check_link "{{home}}/.config/starship.toml" "{{dotfiles}}/starship.toml"
-    check_link "{{home}}/.config/mise/config.toml" "{{dotfiles}}/mise/config.toml"
+    check_link "{{home}}/.zshrc" "{{dotfiles}}/.zshrc" shell
+    check_link "{{home}}/.config/starship.toml" "{{dotfiles}}/starship.toml" shell
+    check_link "{{home}}/.config/mise/config.toml" "{{dotfiles}}/mise/config.toml" shell
     if command -v mise >/dev/null 2>&1; then
         ok "mise on PATH"
     else
@@ -177,6 +269,32 @@ doctor-dev: doctor-server
         ok "git hooks wired"
     else
         warn "git hooks not wired, run 'just git'"
+    fi
+    eval "$(mise env -s bash)"
+    claude_home="{{home}}/.claude"
+    repo_config="{{dotfiles}}/claude"
+    check_link "$claude_home/CLAUDE.md" "$repo_config/CLAUDE.md" claude
+    for agent in "$repo_config"/agents/*.md; do
+        check_link "$claude_home/agents/$(basename "$agent")" "$agent" claude
+    done
+    for skill in "$repo_config"/skills/*/; do
+        skill="${skill%/}"
+        check_link "$claude_home/skills/$(basename "$skill")" "$skill" claude
+    done
+    for link in "$claude_home"/agents/* "$claude_home"/skills/*; do
+        [ -L "$link" ] && [ ! -e "$link" ] || continue
+        case "$(readlink "$link")" in
+            "$repo_config"/*) warn "$link is a dangling link into the repo, run 'just claude'" ;;
+        esac
+    done
+    if [ ! -f "$claude_home/settings.json" ]; then
+        warn "$claude_home/settings.json missing, run 'just claude'"
+    elif ! command -v jq >/dev/null 2>&1; then
+        warn "jq missing, run 'just mise'"
+    elif [ "$(jq -S --slurpfile base "$repo_config/settings.json" '. * $base[0]' "$claude_home/settings.json")" = "$(jq -S . "$claude_home/settings.json")" ]; then
+        ok "Claude Code settings contain the base settings"
+    else
+        warn "Claude Code settings differ from the base settings, run 'just claude'"
     fi
     missing_tools="$(mise ls --global --missing)"
     if [ -z "$missing_tools" ]; then
