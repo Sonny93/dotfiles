@@ -9,6 +9,16 @@ default: help
 help:
     @just --list --unsorted
 
+# Set up or update the XPS (Tabby apart: 'just tabby' with Tabby closed)
+xps: apt shell mise git gh-auth doctor
+    #!/usr/bin/env bash
+    echo "XPS setup done. Reload the shell with 'exec zsh'."
+
+# Set up or update a server
+server: apt shell doctor-server
+    #!/usr/bin/env bash
+    echo "Server setup done. Reload the shell with 'exec zsh'."
+
 # Upgrade system packages
 apt:
     #!/usr/bin/env bash
@@ -88,7 +98,7 @@ tabby:
     #!/usr/bin/env bash
     bash {{dotfiles}}/tabby/install.sh
 
-# Check the shell setup (servers and PCs)
+# Check the shell setup (servers and the XPS)
 doctor-server:
     #!/usr/bin/env bash
     check_link() {
@@ -126,7 +136,7 @@ doctor-server:
         fi
     done
 
-# Check the full PC setup
+# Check the full XPS setup
 doctor: doctor-server
     #!/usr/bin/env bash
     if [ -n "${GITHUB_TOKEN:-}" ]; then

@@ -2,7 +2,7 @@
 
 zsh, git, mise, Starship et Tabby, pour deux types de machines :
 
-- **PC** : Windows 11 (seulement Tabby + Bitwarden) et Debian 13 (tout).
+- **PC** : Windows 11 (seulement Tabby + Bitwarden) et le XPS sous Debian 13 (tout).
 - **Serveurs / VPS** : Debian, shell seulement. Pas de clé privée, pas de compte GitHub, rien à voler.
 
 ## Sommaire
@@ -11,9 +11,9 @@ zsh, git, mise, Starship et Tabby, pour deux types de machines :
 - [PC](#pc)
   - [Une seule fois : la clé SSH](#une-seule-fois--la-clé-ssh)
   - [Windows 11](#windows-11)
-  - [Debian 13](#debian-13)
+  - [XPS (Debian 13)](#xps-debian-13)
   - [Ajouter une connexion](#ajouter-une-connexion)
-  - [Mettre à jour un PC](#mettre-à-jour-un-pc)
+  - [Mettre à jour le XPS](#mettre-à-jour-le-xps)
 - [Serveur / VPS](#serveur--vps)
   - [Installer](#installer)
   - [Mettre à jour un serveur](#mettre-à-jour-un-serveur)
@@ -31,7 +31,7 @@ zsh, git, mise, Starship et Tabby, pour deux types de machines :
 | Connexions SSH | `~/.ssh/config` sur chaque PC, copie dans une note Bitwarden | Jamais |
 | Réglages Tabby (thème, police, raccourcis) | `tabby/config.yaml` | Oui |
 | Identité git | Chaque repo (`.git/config`), ou `~/.gitconfig.local` en option | Jamais |
-| Accès GitHub | Jeton `gh` sur chaque PC | Jamais |
+| Accès GitHub | Jeton `gh` sur le XPS | Jamais |
 
 Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
@@ -81,7 +81,7 @@ Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
 6. Vérifier : `ssh-add -L` affiche la clé Bitwarden, et Tabby liste les connexions sous la forme `mon-serveur (.ssh/config)`.
 
-### Debian 13
+### XPS (Debian 13)
 
 1. Paquets de base :
 
@@ -104,41 +104,37 @@ Le repo est public : on le clone en HTTPS, sans clé ni compte.
    export PATH="$HOME/.local/bin:$PATH"
    ```
 
-4. Shell, puis tous les outils :
+4. Shell :
 
    ```sh
    cd ~/dotfiles
    mise exec just -- just shell
    chsh -s "$(command -v zsh)"
    exec zsh
-   just mise
    ```
 
-5. Git : config du repo et accès GitHub :
+5. Connexions : créer `~/.ssh/config` avec le contenu de la note **ssh config**.
+6. Tabby : installer Tabby, le lancer une fois, le fermer complètement, puis `just tabby` depuis un autre terminal que Tabby.
+7. Tout le reste, vérification comprise :
 
    ```sh
-   just git
-   just gh-auth
+   just xps
    ```
 
-   Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
+   `just xps` enchaîne `apt`, `shell`, `mise` (tous les outils), `git` (config du repo + hook gitleaks), `gh-auth` (accès GitHub) puis `doctor`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
-6. Connexions : créer `~/.ssh/config` avec le contenu de la note **ssh config**.
-7. Tabby : installer Tabby, le lancer une fois, le fermer complètement, puis `just tabby` depuis un autre terminal que Tabby.
-8. Vérifier : `just doctor`.
+   Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
 ### Ajouter une connexion
 
 1. Donner la clé publique au serveur (voir [Serveur / VPS](#installer)).
 2. Ajouter le `Host` dans la note **ssh config** de Bitwarden, puis dans `~/.ssh/config` de chaque PC. Tabby l'affiche au prochain lancement.
 
-### Mettre à jour un PC
+### Mettre à jour le XPS
 
 ```sh
 cd ~/dotfiles && git pull
-just apt
-just shell
-just mise
+just xps
 exec zsh
 ```
 
@@ -150,7 +146,7 @@ Si `tabby/config.yaml` a changé : réinstaller Tabby (voir [Tabby](#tabby)).
 
 1. **Donner la clé publique au serveur.** C'est la serrure, pas la clé : elle peut être lue sans risque.
    - VPS neuf : coller la clé publique (copiée depuis Bitwarden) dans le formulaire de l'hébergeur.
-   - Serveur existant, depuis un PC (PowerShell ou Debian), avec une connexion par mot de passe :
+   - Serveur existant, depuis un PC (PowerShell ou XPS), avec une connexion par mot de passe :
 
      ```sh
      ssh-add -L | ssh user@host "umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
@@ -168,10 +164,10 @@ Si `tabby/config.yaml` a changé : réinstaller Tabby (voir [Tabby](#tabby)).
    mise exec just -- just shell
    chsh -s "$(command -v zsh)"
    exec zsh
-   just doctor-server
+   just server
    ```
 
-   `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just), pas toute la config mise.
+   `just server` enchaîne `apt`, `shell` puis `doctor-server`. `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just), pas toute la config mise.
 
 À ne jamais faire sur un serveur : y mettre la clé privée, s'y connecter à GitHub, ou activer `ForwardAgent` vers lui (root sur le serveur pourrait utiliser ta clé tant que tu es connecté).
 
@@ -179,8 +175,7 @@ Si `tabby/config.yaml` a changé : réinstaller Tabby (voir [Tabby](#tabby)).
 
 ```sh
 cd ~/dotfiles && git pull
-just apt
-just shell
+just server
 exec zsh
 ```
 
@@ -188,8 +183,10 @@ exec zsh
 
 `just` ou `just help` liste les commandes.
 
-| Commande | Rôle | PC | Serveur |
+| Commande | Rôle | XPS | Serveur |
 |---|---|---|---|
+| `just xps` | Installer / mettre à jour le XPS (PC Debian) : `apt`, `shell`, `mise`, `git`, `gh-auth`, `doctor` (sans Tabby) | ✓ | |
+| `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
 | `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
@@ -197,12 +194,12 @@ exec zsh
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
 | `just tabby` | Installer la config Tabby du repo (Tabby fermé), en gardant profil par défaut et hosts connus | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
-| `just doctor` | Vérifier tout le PC (lance aussi `doctor-server`) | ✓ | |
+| `just doctor` | Vérifier tout le XPS (lance aussi `doctor-server`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
 
 ## Shell
 
-zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`). Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit : il gère aussi les séquences envoyées par Tabby sous Windows. Tous les outils viennent de mise, avec une seule config pour PC et serveurs.
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`). Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit : il gère aussi les séquences envoyées par Tabby sous Windows. Tous les outils viennent de mise, avec une seule config pour le XPS et les serveurs.
 
 ## Tabby
 
@@ -211,7 +208,7 @@ zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, synt
 Installer ou mettre à jour, Tabby **fermé**, depuis un autre terminal :
 
 - **Windows** : `irm https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/install.ps1 | iex` (`tabby/install.ps1`)
-- **Debian** : `cd ~/dotfiles && git pull && just tabby` (`tabby/install.sh`)
+- **XPS** : `cd ~/dotfiles && git pull && just tabby` (`tabby/install.sh`)
 
 Le script :
 
@@ -228,8 +225,8 @@ Le repo est public et ne contient **jamais** de secret, d'identité ni d'infos s
 
 - **Clé SSH** : seulement dans Bitwarden. Coffre verrouillé = aucune connexion possible. Une machine perdue = se déconnecter de Bitwarden dessus.
 - **Connexions** : dans Bitwarden et `~/.ssh/config` des PC, jamais dans le repo.
-- **Identité git** : définie dans chaque repo. `.gitconfig` inclut aussi `~/.gitconfig.local`, optionnel et propre à chaque PC, pour une identité par défaut.
-- **GitHub** : jeton `gh` sur les PC uniquement. Sous Debian, il va dans le trousseau système s'il y en a un, sinon en clair dans `~/.config/gh/hosts.yml`.
+- **Identité git** : définie dans chaque repo. `.gitconfig` inclut aussi `~/.gitconfig.local`, optionnel et propre au XPS, pour une identité par défaut.
+- **GitHub** : jeton `gh` sur le XPS uniquement. Il va dans le trousseau système s'il y en a un, sinon en clair dans `~/.config/gh/hosts.yml`.
 - **gitleaks** tourne en pre-commit (`githooks/pre-commit`, activé par `just git`) et bloque tout secret qui tenterait d'entrer.
 
 ## MOTD
