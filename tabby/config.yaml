@@ -1,3 +1,5 @@
+# Custom Tabby settings only: anything absent here falls back to Tabby's defaults.
+# Machine-local state (profiles, groups, knownHosts, default profile) is never committed.
 version: 8
 hotkeys:
   toggle-window:
@@ -6,8 +8,36 @@ hotkeys:
     - Ctrl-Tab
   previous-tab:
     - Ctrl-Shift-Tab
+  # Ctrl-Shift-W closes the pane, so it must be unbound from close-tab
   close-pane:
     - Ctrl-Shift-W
+  close-tab: []
+  # TEMPORARY workaround: Ctrl-Shift-V is unbound because Tabby fires the paste hotkey
+  # twice per keystroke (Eugeny/tabby#11706). Restore the default
+  # [Ctrl-Shift-V, Shift-Insert] once Eugeny/tabby#11769 is merged and released.
+  paste:
+    - Shift-Insert
+  # Ctrl-N instead of the default Alt-N, which the shell uses for meta keys
+  tab-1:
+    - Ctrl-1
+  tab-2:
+    - Ctrl-2
+  tab-3:
+    - Ctrl-3
+  tab-4:
+    - Ctrl-4
+  tab-5:
+    - Ctrl-5
+  tab-6:
+    - Ctrl-6
+  tab-7:
+    - Ctrl-7
+  tab-8:
+    - Ctrl-8
+  tab-9:
+    - Ctrl-9
+  # Ctrl-0 stays on reset-zoom
+  tab-10: []
 terminal:
   colorScheme:
     name: Cobalt2
@@ -34,7 +64,7 @@ terminal:
   cursor: underline
   ligatures: true
   minimumContrastRatio: 8
-  fontSize: 17
+  fontSize: 20
 ssh:
   warnOnClose: true
 enableAnalytics: false
