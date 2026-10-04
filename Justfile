@@ -83,16 +83,10 @@ gh-auth:
     fi
     gh auth setup-git
 
-# Seed the local Tabby config, never overwrites an existing one
+# Install the repo Tabby config, keeping the default profile and known hosts
 tabby:
     #!/usr/bin/env bash
-    mkdir -p {{home}}/.config/tabby
-    if [ ! -f {{home}}/.config/tabby/config.yaml ]; then
-        cp {{dotfiles}}/tabby/config.yaml {{home}}/.config/tabby/config.yaml
-        echo "Tabby config seeded. Connections come from ~/.ssh/config, never from the repo."
-    else
-        echo "Local Tabby config.yaml already exists, left untouched."
-    fi
+    bash {{dotfiles}}/tabby/install.sh
 
 # Check the shell setup (servers and PCs)
 doctor-server:
