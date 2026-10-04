@@ -1,6 +1,6 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
-shell_tools := 'starship fzf just'
+shell_tools := 'starship fzf just fastfetch'
 
 [private]
 default: help

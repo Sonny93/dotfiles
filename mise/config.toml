@@ -1,6 +1,7 @@
 [tools]
 bun = "latest"
 claude = "latest"
+fastfetch = "latest"
 fzf = "latest"
 gh = "latest"
 gitleaks = "latest"
