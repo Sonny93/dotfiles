@@ -260,7 +260,7 @@ Le script :
 3. garde les hosts déjà connus (pas de nouvelle validation des empreintes) ;
 4. garde le profil par défaut s'il pointe vers un `Host` de `~/.ssh/config`, sinon demande lequel ouvrir au lancement (un `Host` ou le shell local).
 
-Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/config` et les affiche sous la forme `mon-serveur (.ssh/config)`.
+Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/config` et les affiche sous la forme `mon-serveur (.ssh/config)`. Leurs réglages communs viennent de `profileDefaults.ssh` dans `tabby/config.yaml` : titre d'onglet envoyé par le shell distant (dossier ou commande en cours) et nouvel onglet / SFTP ouvert dans le dossier courant. Le `.zshrc` envoie les deux à chaque prompt, aucun profil à modifier à la main.
 
 ## Claude Code
 

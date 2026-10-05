@@ -67,6 +67,15 @@ terminal:
   fontSize: 20
 ssh:
   warnOnClose: true
+# Applies to every SSH profile, including the ones Tabby reads from ~/.ssh/config,
+# so no profile needs editing by hand
+profileDefaults:
+  ssh:
+    # Show the title set by the remote shell (path or running command) instead of the host name
+    disableDynamicTitle: false
+    options:
+      # Open new tabs and SFTP in the directory reported by the remote shell (OSC 1337 CurrentDir)
+      rememberCwd: true
 enableAnalytics: false
 enableWelcomeTab: false
 pluginBlacklist:
