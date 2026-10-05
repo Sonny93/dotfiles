@@ -84,7 +84,12 @@ show_running_title() {
   set_tab_title "▶ $collapsedCommand · $(current_location)"
 }
 
+report_working_directory() {
+  printf '\e]1337;CurrentDir=%s\a' "$PWD"
+}
+
 autoload -Uz add-zsh-hook
+add-zsh-hook precmd report_working_directory
 add-zsh-hook precmd show_idle_title
 add-zsh-hook preexec show_running_title
 
