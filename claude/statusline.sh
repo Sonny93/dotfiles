@@ -19,6 +19,8 @@ GRAY_BOLD=$'\033[1;90m'
 CYAN_BOLD=$'\033[1;36m'
 PURPLE_BOLD=$'\033[1;35m'
 RED_BOLD=$'\033[1;31m'
+YELLOW_BOLD=$'\033[1;33m'
+GREEN_BOLD=$'\033[1;32m'
 
 render_directory() {
   local directory
@@ -57,6 +59,24 @@ render_git() {
 
 render_identity() {
   printf '%s' "${GRAY_BOLD}$(whoami)${RESET}${GRAY}@$(hostname -s) $(date +%H:%M:%S)${RESET}"
+}
+
+CONTEXT_WARNING_PERCENTAGE=50
+CONTEXT_DANGER_PERCENTAGE=80
+
+render_context() {
+  local percentage color
+  percentage=$(printf '%s' "$INPUT" | jq -r '.context_window.used_percentage // empty | floor' 2>/dev/null)
+  [ -z "$percentage" ] && return 0
+
+  if [ "$percentage" -ge "$CONTEXT_DANGER_PERCENTAGE" ]; then
+    color="$RED_BOLD"
+  elif [ "$percentage" -ge "$CONTEXT_WARNING_PERCENTAGE" ]; then
+    color="$YELLOW_BOLD"
+  else
+    color="$GREEN_BOLD"
+  fi
+  printf '%s' "${GRAY}ctx${RESET} ${color}${percentage}%${RESET}"
 }
 
 render_caveman_badge() {
@@ -108,6 +128,8 @@ printf '%s' "${CYAN_BOLD}${DIRECTORY/#"$HOME"/\~}${RESET}"
 render_git "$DIRECTORY"
 printf ' %s ' "${GRAY}·${RESET}"
 render_identity
+CONTEXT=$(render_context)
+[ -n "$CONTEXT" ] && printf ' %s %s' "${GRAY}·${RESET}" "$CONTEXT"
 BADGE=$(render_caveman_badge)
 [ -n "$BADGE" ] && printf ' %s' "$BADGE"
 printf '\n'
