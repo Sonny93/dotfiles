@@ -8,6 +8,7 @@ $directory\
 $git_branch\
 $git_status\
 $fill \
+${env_var.MACHINE_BADGE}\
 $username\
 $hostname\
 $time
@@ -150,6 +151,9 @@ symbol = " "
 
 [hg_branch]
 symbol = " "
+
+[env_var.MACHINE_BADGE]
+format = "$env_value "
 
 [hostname]
 ssh_only = false
