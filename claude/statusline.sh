@@ -61,22 +61,63 @@ render_identity() {
   printf '%s' "${GRAY_BOLD}$(whoami)${RESET}${GRAY}@$(hostname -s) $(date +%H:%M:%S)${RESET}"
 }
 
-CONTEXT_WARNING_PERCENTAGE=50
-CONTEXT_DANGER_PERCENTAGE=80
+USAGE_WARNING_PERCENTAGE=50
+USAGE_DANGER_PERCENTAGE=80
 
-render_context() {
-  local percentage color
-  percentage=$(printf '%s' "$INPUT" | jq -r '.context_window.used_percentage // empty | floor' 2>/dev/null)
+usage_color() {
+  local percentage="$1"
+  if [ "$percentage" -ge "$USAGE_DANGER_PERCENTAGE" ]; then
+    printf '%s' "$RED_BOLD"
+  elif [ "$percentage" -ge "$USAGE_WARNING_PERCENTAGE" ]; then
+    printf '%s' "$YELLOW_BOLD"
+  else
+    printf '%s' "$GREEN_BOLD"
+  fi
+}
+
+relative_day() {
+  local timestamp="$1"
+  case "$(date -d "@${timestamp}" +%F)" in
+    "$(date -d '-1 day' +%F)") printf 'yesterday' ;;
+    "$(date +%F)") printf 'today' ;;
+    "$(date -d '+1 day' +%F)") printf 'tomorrow' ;;
+    *) printf '%%a' ;;
+  esac
+}
+
+render_reset() {
+  local window_path="$1" reset_format="$2"
+  local resets_at
+  [ -z "$reset_format" ] && return 0
+  resets_at=$(printf '%s' "$INPUT" | jq -r "${window_path}.resets_at // empty" 2>/dev/null)
+  [ -z "$resets_at" ] && return 0
+  reset_format="${reset_format//%a/$(relative_day "$resets_at")}"
+  printf ' %s' "${GRAY}↻ $(date -d "@${resets_at}" +"$reset_format")${RESET}"
+}
+
+render_usage() {
+  local label="$1" window_path="$2" reset_format="$3"
+  local percentage
+  percentage=$(printf '%s' "$INPUT" | jq -r "${window_path}.used_percentage // empty | floor" 2>/dev/null)
   [ -z "$percentage" ] && return 0
 
-  if [ "$percentage" -ge "$CONTEXT_DANGER_PERCENTAGE" ]; then
-    color="$RED_BOLD"
-  elif [ "$percentage" -ge "$CONTEXT_WARNING_PERCENTAGE" ]; then
-    color="$YELLOW_BOLD"
-  else
-    color="$GREEN_BOLD"
-  fi
-  printf '%s' "${GRAY}ctx${RESET} ${color}${percentage}%${RESET}"
+  printf '%s' "${GRAY}[${label}${RESET} $(usage_color "$percentage")${percentage}%${RESET}"
+  render_reset "$window_path" "$reset_format"
+  printf '%s' "${GRAY}]${RESET}"
+}
+
+render_usages() {
+  local usages=()
+  local window label window_path reset_format usage
+  for window in \
+    "ctx|.context_window|" \
+    "5h|.rate_limits.five_hour|%H:%M" \
+    "7d|.rate_limits.seven_day|%a %Hh"; do
+    IFS='|' read -r label window_path reset_format <<< "$window"
+    usage=$(render_usage "$label" "$window_path" "$reset_format")
+    [ -n "$usage" ] && usages+=("$usage")
+  done
+  printf '%s' "${usages[*]}"
 }
 
 render_caveman_badge() {
@@ -128,8 +169,8 @@ printf '%s' "${CYAN_BOLD}${DIRECTORY/#"$HOME"/\~}${RESET}"
 render_git "$DIRECTORY"
 printf ' %s ' "${GRAY}·${RESET}"
 render_identity
-CONTEXT=$(render_context)
-[ -n "$CONTEXT" ] && printf ' %s %s' "${GRAY}·${RESET}" "$CONTEXT"
+USAGES=$(render_usages)
+[ -n "$USAGES" ] && printf ' %s %s' "${GRAY}·${RESET}" "$USAGES"
 BADGE=$(render_caveman_badge)
 [ -n "$BADGE" ] && printf ' %s' "$BADGE"
 printf '\n'
