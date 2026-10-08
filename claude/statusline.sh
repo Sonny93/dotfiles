@@ -58,6 +58,7 @@ render_git() {
 }
 
 render_identity() {
+  [ -n "$MACHINE_BADGE" ] && printf '%s ' "$MACHINE_BADGE"
   printf '%s' "${GRAY_BOLD}$(whoami)${RESET}${GRAY}@$(hostname -s) $(date +%H:%M:%S)${RESET}"
 }
 
