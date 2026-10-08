@@ -23,6 +23,16 @@ zinit light zsh-users/zsh-syntax-highlighting
 
 export PATH="$HOME/.local/bin:$PATH"
 eval "$(mise activate zsh)"
+MACHINE_BADGES=(🔴 🟠 🟡 🟢 🔵 🟣 🟤 ⚪ 🟥 🟧 🟨 🟩 🟦 🟪 🟫 ⬜)
+
+compute_machine_badge() {
+  local checksum
+  checksum=$(print -n "${HOST%%.*}" | cksum | cut -d' ' -f1)
+  print -r -- "${MACHINE_BADGES[$(( checksum % ${#MACHINE_BADGES} + 1 ))]}"
+}
+
+export MACHINE_BADGE="${MACHINE_BADGE:-$(compute_machine_badge)}"
+
 eval "$(starship init zsh)"
 eval "$(fzf --zsh)"
 
@@ -47,7 +57,7 @@ fi
 TAB_TITLE_MAX_COMMAND_LENGTH=30
 
 set_tab_title() {
-  printf '\e]0;%s\a' "$1"
+  printf '\e]0;%s %s · %s\a' "$MACHINE_BADGE" "${HOST%%.*}" "$1"
 }
 
 current_location() {
