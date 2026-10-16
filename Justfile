@@ -100,7 +100,7 @@ gh-auth:
     done
     echo "git uses gh for GitHub over HTTPS."
 
-# Link the Claude Code config (CLAUDE.md, agents, skills) and merge the base settings
+# Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills) and merge the base settings
 claude:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -138,8 +138,10 @@ claude:
     }
 
     link_repo_entries() {
-        local agent skill
-        link_into "$repo_config/CLAUDE.md" "$claude_home/CLAUDE.md"
+        local markdown agent skill
+        for markdown in "$repo_config"/*.md; do
+            link_into "$markdown" "$claude_home/$(basename "$markdown")"
+        done
         for agent in "$repo_config"/agents/*.md; do
             link_into "$agent" "$claude_home/agents/$(basename "$agent")"
         done
@@ -273,7 +275,9 @@ doctor-dev: doctor-server
     eval "$(mise env -s bash)"
     claude_home="{{home}}/.claude"
     repo_config="{{dotfiles}}/claude"
-    check_link "$claude_home/CLAUDE.md" "$repo_config/CLAUDE.md" claude
+    for markdown in "$repo_config"/*.md; do
+        check_link "$claude_home/$(basename "$markdown")" "$markdown" claude
+    done
     for agent in "$repo_config"/agents/*.md; do
         check_link "$claude_home/agents/$(basename "$agent")" "$agent" claude
     done

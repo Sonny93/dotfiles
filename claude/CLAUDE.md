@@ -116,3 +116,5 @@ Apply these by default, without being asked:
 # Tooling
 
 - Always use Context7 when I need library or API documentation, code generation, setup or configuration steps — without me having to explicitly ask
+
+@RTK.md

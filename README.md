@@ -35,7 +35,7 @@ zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, mach
 | Réglages Tabby (thème, police, raccourcis) | `tabby/config.yaml` | Oui |
 | Identité git | Chaque repo (`.git/config`), ou `~/.gitconfig.local` en option | Jamais |
 | Accès GitHub | Jeton `gh` sur chaque machine de dev (le XPS compris) | Jamais |
-| Config Claude Code (CLAUDE.md, agents, skills, réglages de base) | `claude/` | Oui |
+| Config Claude Code (CLAUDE.md, RTK.md, agents, skills, réglages de base) | `claude/` | Oui |
 | Identifiants Claude Code, jetons MCP, mémoire, historique | `~/.claude/` et `~/.claude.json` sur chaque machine de dev | Jamais |
 
 Le repo est public : on le clone en HTTPS, sans clé ni compte.
@@ -235,7 +235,7 @@ exec zsh
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
 | `just git` | Config git du repo + hook gitleaks | ✓ | |
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
-| `just claude` | Lier la config Claude Code (CLAUDE.md, agents, skills) et fusionner les réglages de base | ✓ | |
+| `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills) et fusionner les réglages de base | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
 | `just doctor-dev` | Vérifier toute la machine de dev (lance aussi `doctor-server`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
@@ -268,8 +268,9 @@ Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/conf
 
 `claude/` contient la config utilisateur de Claude Code, appliquée par `just claude` (lancé par `just dev`) :
 
-- **Liés** : `claude/CLAUDE.md`, chaque fichier de `claude/agents/` et chaque dossier de `claude/skills/` sont liés un par un dans `~/.claude/` (`~/.claude/CLAUDE.md`, `~/.claude/agents/<nom>.md`, `~/.claude/skills/<nom>`). Le reste de `~/.claude/skills/` (`synced/`, skills installés par `npx skills`, plugins) n'est pas touché.
+- **Liés** : les fichiers `.md` de premier niveau de `claude/` (`CLAUDE.md`, `RTK.md`), chaque fichier de `claude/agents/` et chaque dossier de `claude/skills/` sont liés un par un dans `~/.claude/` (`~/.claude/CLAUDE.md`, `~/.claude/RTK.md`, `~/.claude/agents/<nom>.md`, `~/.claude/skills/<nom>`). Le reste de `~/.claude/skills/` (`synced/`, skills installés par `npx skills`, plugins) n'est pas touché.
 - **Fusionné** : `claude/settings.json` est une base fusionnée (jq) dans `~/.claude/settings.json`, jamais liée : Claude Code réécrit ce fichier lui-même. Les clés du repo l'emportent, les clés propres à la machine (`model`, `theme`…) restent.
+- **rtk** : `rtk` (installé par `just mise`) compresse la sortie des commandes avant qu'elle n'atteigne Claude. Les réglages de base déclarent son hook `PreToolUse` (`rtk hook claude`) et `CLAUDE.md` importe `RTK.md` : aucun `rtk init` à lancer. Ne pas relancer `rtk init -g` (il modifierait `settings.json` et écrirait à travers le lien `RTK.md`) ; si une nouvelle version de rtk change `RTK.md`, le régénérer ailleurs et le copier dans `claude/RTK.md`.
 - `claude/statusline.sh` est référencé directement par les réglages de base : rien à installer.
 
 Avant de remplacer quoi que ce soit, `just claude` déplace l'existant dans `~/.claude/backups/dotfiles-<date>/` (même chemin relatif) et affiche chaque sauvegarde. Rien n'est supprimé, sauf les liens vers le repo devenus orphelins (skill ou agent retiré du repo).
