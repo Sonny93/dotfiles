@@ -42,16 +42,26 @@ zstyle ':completion:*' matcher-list 'm:{[:lower:][:upper:]}={[:upper:][:lower:]}
 
 [ -f "$HOME/dotfiles/.bash_aliases" ] && source "$HOME/dotfiles/.bash_aliases"
 
+DEV_DIRECTORY="$HOME/dev"
+
+home_directory() {
+  if [[ -d "$DEV_DIRECTORY" ]]; then
+    print -r -- "$DEV_DIRECTORY"
+  else
+    print -r -- "$HOME"
+  fi
+}
+
 cd() {
   if [ $# -eq 0 ]; then
-    builtin cd ~/dev
+    builtin cd "$(home_directory)"
   else
     builtin cd "$@"
   fi
 }
 
 if [[ $SHLVL -eq 1 ]]; then
-  cd ~/dev
+  cd
 fi
 
 TAB_TITLE_MAX_COMMAND_LENGTH=30
