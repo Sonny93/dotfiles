@@ -100,7 +100,7 @@ render_git() {
 
 render_identity() {
   local clock
-  printf -v clock '%(%H:%M:%S)T' -1
+  printf -v clock '%(%H:%M)T' -1
   [ -n "$MACHINE_BADGE" ] && printf '%s ' "$MACHINE_BADGE"
   printf '%s' "${GRAY_BOLD}${USER:-$(id -un)}${RESET}${GRAY}@${HOSTNAME%%.*} ${clock}${RESET}"
 }
