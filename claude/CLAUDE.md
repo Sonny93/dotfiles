@@ -75,7 +75,7 @@ Apply these by default, without being asked:
 
 - Write tests alongside code, not after — tests are not optional
 - Test behavior, not implementation — never test private methods directly
-- One assertion per test when possible
+- One behavior per test: one scenario (arrange + act), with as many assertions as its outcome needs. Tests that share the same arrange and act are one test
 - Test names describe what should happen and under what condition: `should return 404 when user does not exist`
 - Prefer unit tests — use integration tests only at boundaries (DB, HTTP, filesystem)
 - Co-locate test files with source files
