@@ -21,6 +21,9 @@ PURPLE_BOLD=$'\033[1;35m'
 RED_BOLD=$'\033[1;31m'
 YELLOW_BOLD=$'\033[1;33m'
 GREEN_BOLD=$'\033[1;32m'
+GREEN=$'\033[32m'
+RED=$'\033[31m'
+BOLD=$'\033[1m'
 
 render_directory() {
   local directory
@@ -52,7 +55,7 @@ render_git() {
     *behind*) ahead_behind="⇣" ;;
   esac
 
-  printf ' %s' "${PURPLE_BOLD} ${branch}${RESET}"
+  printf '%s' "${PURPLE_BOLD} ${branch}${RESET}"
   [ -n "$symbols$ahead_behind" ] && printf ' %s' "${RED_BOLD}[${symbols}${ahead_behind}]${RESET}"
   return 0
 }
@@ -187,13 +190,131 @@ fi
 return 0
 }
 
-DIRECTORY=$(render_directory)
-printf '%s' "${CYAN_BOLD}${DIRECTORY/#"$HOME"/\~}${RESET}"
-render_git "$DIRECTORY"
-printf ' %s ' "${GRAY}·${RESET}"
-render_identity
-USAGES=$(render_usages)
-[ -n "$USAGES" ] && printf ' %s %s' "${GRAY}·${RESET}" "$USAGES"
-BADGE=$(render_caveman_badge)
-[ -n "$BADGE" ] && printf ' %s' "$BADGE"
-printf '\n'
+SESSION_NAME_MAX_LENGTH=40
+MILLISECONDS_PER_MINUTE=60000
+MINUTES_PER_HOUR=60
+PERCENT_MULTIPLIER=100
+SEPARATOR_WIDTH=3
+UTF8_LOCALE="C.UTF-8"
+
+read_json() {
+  printf '%s' "$INPUT" | jq -r "$1" 2>/dev/null
+}
+
+emit_segment() {
+  [ -n "$1" ] && printf '%s\n' "$1"
+  return 0
+}
+
+visible_width() {
+  local LC_ALL="$UTF8_LOCALE"
+  local plain
+  plain=$(printf '%s' "$1" | sed $'s/\033\\[[0-9;]*m//g')
+  printf '%s' "${#plain}"
+}
+
+render_location() {
+  local directory git_part
+  directory=$(render_directory)
+  git_part=$(render_git "$directory")
+  printf '%s' "${CYAN_BOLD}${directory/#"$HOME"/\~}${RESET}"
+  [ -n "$git_part" ] && printf ' %s' "$git_part"
+  return 0
+}
+
+render_session_name() {
+  local LC_ALL="$UTF8_LOCALE"
+  local session_name
+  session_name=$(read_json '.session_name // empty' | tr -d '\000-\037')
+  [ -z "$session_name" ] && return 0
+  if [ "${#session_name}" -gt "$SESSION_NAME_MAX_LENGTH" ]; then
+    session_name="${session_name:0:$((SESSION_NAME_MAX_LENGTH - 1))}…"
+  fi
+  printf '%s' "$session_name"
+}
+
+render_model() {
+  local model_name effort_level
+  model_name=$(read_json '.model.display_name // empty')
+  [ -z "$model_name" ] && return 0
+  effort_level=$(read_json '.effort.level // empty')
+  printf '%s' "${BOLD}${model_name}${RESET}"
+  [ -n "$effort_level" ] && printf '%s' "${GRAY} · ${effort_level}${RESET}"
+  [ "$(read_json '.fast_mode // empty')" = "true" ] && printf ' ⚡'
+  return 0
+}
+
+render_prompt_cache() {
+  local hit_percentage misses color
+  hit_percentage=$(read_json ".prompt_cache.hit_ratio // empty | . * ${PERCENT_MULTIPLIER} | floor")
+  [ -z "$hit_percentage" ] && return 0
+  color="$GRAY"
+  [ "$(read_json '.prompt_cache.warm // empty')" = "true" ] && color="$GREEN_BOLD"
+  printf '%s' "${color}♻ ${hit_percentage}%${RESET}"
+  misses=$(read_json '.prompt_cache.misses // 0 | floor')
+  [ "$misses" -gt 0 ] && printf ' %s' "${RED_BOLD}✗${misses}${RESET}"
+  return 0
+}
+
+render_lines() {
+  local added removed
+  added=$(read_json '.cost.total_lines_added // 0 | floor')
+  removed=$(read_json '.cost.total_lines_removed // 0 | floor')
+  [ "$added" -eq 0 ] && [ "$removed" -eq 0 ] && return 0
+  printf '%s %s' "${GREEN}+${added}${RESET}" "${RED}-${removed}${RESET}"
+}
+
+render_duration() {
+  local total_minutes
+  total_minutes=$(read_json ".cost.total_duration_ms // empty | . / ${MILLISECONDS_PER_MINUTE} | floor")
+  [ -z "$total_minutes" ] && return 0
+  if [ "$total_minutes" -ge "$MINUTES_PER_HOUR" ]; then
+    printf '%s' "${GRAY}⏱ $((total_minutes / MINUTES_PER_HOUR))h$(printf '%02d' "$((total_minutes % MINUTES_PER_HOUR))")${RESET}"
+  else
+    printf '%s' "${GRAY}⏱ ${total_minutes}m${RESET}"
+  fi
+}
+
+render_line_one_segments() {
+  emit_segment "$(render_location)"
+  emit_segment "$(render_identity)"
+  emit_segment "$(render_session_name)"
+  emit_segment "$(render_caveman_badge)"
+}
+
+render_line_two_segments() {
+  emit_segment "$(render_model)"
+  emit_segment "$(render_prompt_cache)"
+  emit_segment "$(render_lines)"
+  emit_segment "$(render_duration)"
+  emit_segment "$(render_usages)"
+}
+
+is_wrapping_enabled() {
+  [[ "$COLUMNS" =~ ^[0-9]+$ ]]
+}
+
+print_wrapped_line() {
+  local separator="${GRAY}·${RESET}"
+  local segments=() segment segment_width row="" row_width=0
+  mapfile -t segments
+  for segment in "${segments[@]}"; do
+    segment_width=$(visible_width "$segment")
+    if [ -z "$row" ]; then
+      row="$segment"
+      row_width="$segment_width"
+    elif is_wrapping_enabled && [ $((row_width + SEPARATOR_WIDTH + segment_width)) -gt "$COLUMNS" ]; then
+      printf '%s\n' "$row"
+      row="$segment"
+      row_width="$segment_width"
+    else
+      row+=" ${separator} ${segment}"
+      row_width=$((row_width + SEPARATOR_WIDTH + segment_width))
+    fi
+  done
+  [ -n "$row" ] && printf '%s\n' "$row"
+  return 0
+}
+
+render_line_one_segments | print_wrapped_line
+render_line_two_segments | print_wrapped_line
