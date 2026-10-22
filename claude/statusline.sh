@@ -64,6 +64,8 @@ render_identity() {
 
 USAGE_WARNING_PERCENTAGE=50
 USAGE_DANGER_PERCENTAGE=80
+TOKENS_PER_THOUSAND=1000
+TOKENS_PER_MILLION=1000000
 
 usage_color() {
   local percentage="$1"
@@ -96,6 +98,25 @@ render_reset() {
   printf ' %s' "${GRAY}↻ $(date -d "@${resets_at}" +"$reset_format")${RESET}"
 }
 
+format_token_count() {
+  local token_count="$1"
+  if [ "$token_count" -ge "$TOKENS_PER_MILLION" ]; then
+    printf '%sM' "$((token_count / TOKENS_PER_MILLION))"
+  else
+    printf '%sk' "$((token_count / TOKENS_PER_THOUSAND))"
+  fi
+}
+
+render_tokens() {
+  local window_path="$1"
+  local used_tokens window_size
+  used_tokens=$(printf '%s' "$INPUT" | jq -r "${window_path}.total_input_tokens // empty" 2>/dev/null)
+  window_size=$(printf '%s' "$INPUT" | jq -r "${window_path}.context_window_size // empty" 2>/dev/null)
+  [ -z "$used_tokens" ] && return 0
+  [ -z "$window_size" ] && return 0
+  printf ' %s' "${GRAY}$(format_token_count "$used_tokens")/$(format_token_count "$window_size")${RESET}"
+}
+
 render_usage() {
   local label="$1" window_path="$2" reset_format="$3"
   local percentage
@@ -103,6 +124,7 @@ render_usage() {
   [ -z "$percentage" ] && return 0
 
   printf '%s' "${GRAY}[${label}${RESET} $(usage_color "$percentage")${percentage}%${RESET}"
+  render_tokens "$window_path"
   render_reset "$window_path" "$reset_format"
   printf '%s' "${GRAY}]${RESET}"
 }
