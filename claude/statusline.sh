@@ -11,7 +11,9 @@
 #
 # Also mirrors the starship prompt: directory, git branch, git status, user@host, time.
 
-INPUT=$(cat)
+shopt -s extglob
+
+IFS= read -r -d '' INPUT
 
 RESET=$'\033[0m'
 GRAY=$'\033[90m'
@@ -25,35 +27,71 @@ GREEN=$'\033[32m'
 RED=$'\033[31m'
 BOLD=$'\033[1m'
 
+GIT_ABBREVIATED_HASH_LENGTH=7
+
 render_directory() {
-  local directory
-  directory=$(printf '%s' "$INPUT" | jq -r '.workspace.current_dir // .cwd // empty' 2>/dev/null)
-  [ -z "$directory" ] && directory="$PWD"
-  printf '%s' "$directory"
+  printf '%s' "${workspace_current_dir:-$PWD}"
+}
+
+git_branch_name() {
+  local status_output="$1"
+  local branch="" object_id="" kind key value
+  while IFS=' ' read -r kind key value; do
+    [ "$kind" = "#" ] || break
+    case "$key" in
+      branch.head) branch="$value" ;;
+      branch.oid) object_id="$value" ;;
+    esac
+  done <<< "$status_output"
+  [ "$branch" = "(detached)" ] && branch="${object_id:0:GIT_ABBREVIATED_HASH_LENGTH}"
+  printf '%s' "$branch"
+}
+
+git_status_symbols() {
+  local status_output="$1"
+  local staged="" modified="" untracked="" unmerged="" kind code
+  while IFS=' ' read -r kind code _; do
+    case "$kind" in
+      1|2)
+        [ "${code:0:1}" != "." ] && staged="+"
+        [ "${code:1:1}" != "." ] && modified="!"
+        ;;
+      u) unmerged="=" ;;
+      '?') untracked="?" ;;
+    esac
+  done <<< "$status_output"
+  printf '%s' "${staged}${modified}${untracked}${unmerged}"
+}
+
+git_divergence_symbol() {
+  local status_output="$1"
+  local kind key ahead_behind ahead behind
+  while IFS=' ' read -r kind key ahead_behind; do
+    [ "$kind" = "#" ] || break
+    [ "$key" = "branch.ab" ] && break
+  done <<< "$status_output"
+  [ "$key" = "branch.ab" ] || return 0
+  ahead="${ahead_behind%% *}"
+  behind="${ahead_behind##* }"
+  if [ "$ahead" != "+0" ] && [ "$behind" != "-0" ]; then
+    printf '⇕'
+  elif [ "$ahead" != "+0" ]; then
+    printf '⇡'
+  elif [ "$behind" != "-0" ]; then
+    printf '⇣'
+  fi
 }
 
 render_git() {
   local directory="$1"
-  local branch status_output symbols="" ahead_behind=""
+  local status_output branch symbols ahead_behind
 
-  git -C "$directory" --no-optional-locks rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  status_output=$(git -C "$directory" --no-optional-locks status --porcelain=v2 --branch 2>/dev/null) || return 0
 
-  branch=$(git -C "$directory" --no-optional-locks symbolic-ref --short HEAD 2>/dev/null \
-    || git -C "$directory" --no-optional-locks rev-parse --short HEAD 2>/dev/null)
+  branch=$(git_branch_name "$status_output")
   [ -z "$branch" ] && return 0
-
-  status_output=$(git -C "$directory" --no-optional-locks status --porcelain=v1 --branch 2>/dev/null)
-
-  printf '%s' "$status_output" | grep -q '^[MADRC]. ' && symbols+="+"
-  printf '%s' "$status_output" | grep -q '^.[MD] ' && symbols+="!"
-  printf '%s' "$status_output" | grep -q '^??' && symbols+="?"
-  printf '%s' "$status_output" | grep -q '^UU\|^AA\|^DD' && symbols+="="
-
-  case "$(printf '%s' "$status_output" | head -n 1)" in
-    *ahead*behind*) ahead_behind="⇕" ;;
-    *ahead*) ahead_behind="⇡" ;;
-    *behind*) ahead_behind="⇣" ;;
-  esac
+  symbols=$(git_status_symbols "$status_output")
+  ahead_behind=$(git_divergence_symbol "$status_output")
 
   printf '%s' "${PURPLE_BOLD} ${branch}${RESET}"
   [ -n "$symbols$ahead_behind" ] && printf ' %s' "${RED_BOLD}[${symbols}${ahead_behind}]${RESET}"
@@ -61,14 +99,17 @@ render_git() {
 }
 
 render_identity() {
+  local clock
+  printf -v clock '%(%H:%M:%S)T' -1
   [ -n "$MACHINE_BADGE" ] && printf '%s ' "$MACHINE_BADGE"
-  printf '%s' "${GRAY_BOLD}$(whoami)${RESET}${GRAY}@$(hostname -s) $(date +%H:%M:%S)${RESET}"
+  printf '%s' "${GRAY_BOLD}${USER:-$(id -un)}${RESET}${GRAY}@${HOSTNAME%%.*} ${clock}${RESET}"
 }
 
 USAGE_WARNING_PERCENTAGE=50
 USAGE_DANGER_PERCENTAGE=80
 TOKENS_PER_THOUSAND=1000
 TOKENS_PER_MILLION=1000000
+SECONDS_PER_DAY=86400
 
 usage_color() {
   local percentage="$1"
@@ -83,22 +124,28 @@ usage_color() {
 
 relative_day() {
   local timestamp="$1"
-  case "$(date -d "@${timestamp}" +%F)" in
-    "$(date -d '-1 day' +%F)") printf 'yesterday' ;;
-    "$(date +%F)") printf 'today' ;;
-    "$(date -d '+1 day' +%F)") printf 'tomorrow' ;;
+  local target_day yesterday today tomorrow
+  printf -v target_day '%(%F)T' "$timestamp"
+  printf -v yesterday '%(%F)T' "$((EPOCHSECONDS - SECONDS_PER_DAY))"
+  printf -v today '%(%F)T' "$EPOCHSECONDS"
+  printf -v tomorrow '%(%F)T' "$((EPOCHSECONDS + SECONDS_PER_DAY))"
+  case "$target_day" in
+    "$yesterday") printf 'yesterday' ;;
+    "$today") printf 'today' ;;
+    "$tomorrow") printf 'tomorrow' ;;
     *) printf '%%a' ;;
   esac
 }
 
 render_reset() {
-  local window_path="$1" reset_format="$2"
-  local resets_at
+  local resets_at_name="${1}_resets_at" reset_format="$2"
+  local resets_at formatted_reset
   [ -z "$reset_format" ] && return 0
-  resets_at=$(printf '%s' "$INPUT" | jq -r "${window_path}.resets_at // empty" 2>/dev/null)
+  resets_at="${!resets_at_name}"
   [ -z "$resets_at" ] && return 0
   reset_format="${reset_format//%a/$(relative_day "$resets_at")}"
-  printf ' %s' "${GRAY}↻ $(date -d "@${resets_at}" +"$reset_format")${RESET}"
+  printf -v formatted_reset "%(${reset_format})T" "$resets_at"
+  printf ' %s' "${GRAY}↻ ${formatted_reset}${RESET}"
 }
 
 format_token_count() {
@@ -111,36 +158,34 @@ format_token_count() {
 }
 
 render_tokens() {
-  local window_path="$1"
-  local used_tokens window_size
-  used_tokens=$(printf '%s' "$INPUT" | jq -r "${window_path}.total_input_tokens // empty" 2>/dev/null)
-  window_size=$(printf '%s' "$INPUT" | jq -r "${window_path}.context_window_size // empty" 2>/dev/null)
+  local used_tokens_name="${1}_total_input_tokens" window_size_name="${1}_context_window_size"
+  local used_tokens="${!used_tokens_name}" window_size="${!window_size_name}"
   [ -z "$used_tokens" ] && return 0
   [ -z "$window_size" ] && return 0
   printf ' %s' "${GRAY}$(format_token_count "$used_tokens")/$(format_token_count "$window_size")${RESET}"
 }
 
 render_usage() {
-  local label="$1" window_path="$2" reset_format="$3"
-  local percentage
-  percentage=$(printf '%s' "$INPUT" | jq -r "${window_path}.used_percentage // empty | floor" 2>/dev/null)
+  local label="$1" prefix="$2" reset_format="$3"
+  local percentage_name="${prefix}_used_percentage"
+  local percentage="${!percentage_name}"
   [ -z "$percentage" ] && return 0
 
   printf '%s' "${GRAY}[${label}${RESET} $(usage_color "$percentage")${percentage}%${RESET}"
-  render_tokens "$window_path"
-  render_reset "$window_path" "$reset_format"
+  render_tokens "$prefix"
+  render_reset "$prefix" "$reset_format"
   printf '%s' "${GRAY}]${RESET}"
 }
 
 render_usages() {
   local usages=()
-  local window label window_path reset_format usage
+  local window label prefix reset_format usage
   for window in \
-    "ctx|.context_window|" \
-    "5h|.rate_limits.five_hour|%H:%M" \
-    "7d|.rate_limits.seven_day|%a %Hh"; do
-    IFS='|' read -r label window_path reset_format <<< "$window"
-    usage=$(render_usage "$label" "$window_path" "$reset_format")
+    "ctx|context_window|" \
+    "5h|rate_limits_five_hour|%H:%M" \
+    "7d|rate_limits_seven_day|%a %Hh"; do
+    IFS='|' read -r label prefix reset_format <<< "$window"
+    usage=$(render_usage "$label" "$prefix" "$reset_format")
     [ -n "$usage" ] && usages+=("$usage")
   done
   printf '%s' "${usages[*]}"
@@ -197,8 +242,37 @@ PERCENT_MULTIPLIER=100
 SEPARATOR_WIDTH=3
 UTF8_LOCALE="C.UTF-8"
 
-read_json() {
-  printf '%s' "$INPUT" | jq -r "$1" 2>/dev/null
+SESSION_FIELDS_FILTER='
+  def whole: if type == "number" then floor else . end;
+  {
+    workspace_current_dir: (.workspace.current_dir // .cwd),
+    session_name: .session_name,
+    model_display_name: .model.display_name,
+    effort_level: .effort.level,
+    fast_mode: .fast_mode,
+    prompt_cache_hit_percentage: (.prompt_cache.hit_ratio | if type == "number" then . * $percent_multiplier | floor else . end),
+    prompt_cache_warm: .prompt_cache.warm,
+    prompt_cache_misses: (.prompt_cache.misses | whole),
+    cost_total_lines_added: (.cost.total_lines_added | whole),
+    cost_total_lines_removed: (.cost.total_lines_removed | whole),
+    cost_total_minutes: (.cost.total_duration_ms | if type == "number" then . / $milliseconds_per_minute | floor else . end),
+    context_window_used_percentage: (.context_window.used_percentage | whole),
+    context_window_total_input_tokens: .context_window.total_input_tokens,
+    context_window_context_window_size: .context_window.context_window_size,
+    rate_limits_five_hour_used_percentage: (.rate_limits.five_hour.used_percentage | whole),
+    rate_limits_five_hour_resets_at: .rate_limits.five_hour.resets_at,
+    rate_limits_seven_day_used_percentage: (.rate_limits.seven_day.used_percentage | whole),
+    rate_limits_seven_day_resets_at: .rate_limits.seven_day.resets_at
+  } | to_entries[] | "\(.key)=\(.value // "" | tostring | @sh)"
+'
+
+load_session_fields() {
+  local assignments
+  assignments=$(jq -r \
+    --argjson percent_multiplier "$PERCENT_MULTIPLIER" \
+    --argjson milliseconds_per_minute "$MILLISECONDS_PER_MINUTE" \
+    "$SESSION_FIELDS_FILTER" <<< "$INPUT" 2>/dev/null)
+  eval "$assignments"
 }
 
 emit_segment() {
@@ -208,8 +282,7 @@ emit_segment() {
 
 visible_width() {
   local LC_ALL="$UTF8_LOCALE"
-  local plain
-  plain=$(printf '%s' "$1" | sed $'s/\033\\[[0-9;]*m//g')
+  local plain="${1//$'\033['*([0-9;])m/}"
   printf '%s' "${#plain}"
 }
 
@@ -224,54 +297,43 @@ render_location() {
 
 render_session_name() {
   local LC_ALL="$UTF8_LOCALE"
-  local session_name
-  session_name=$(read_json '.session_name // empty' | tr -d '\000-\037')
-  [ -z "$session_name" ] && return 0
-  if [ "${#session_name}" -gt "$SESSION_NAME_MAX_LENGTH" ]; then
-    session_name="${session_name:0:$((SESSION_NAME_MAX_LENGTH - 1))}…"
+  local display_name="${session_name//[[:cntrl:]]/}"
+  [ -z "$display_name" ] && return 0
+  if [ "${#display_name}" -gt "$SESSION_NAME_MAX_LENGTH" ]; then
+    display_name="${display_name:0:$((SESSION_NAME_MAX_LENGTH - 1))}…"
   fi
-  printf '%s' "$session_name"
+  printf '%s' "$display_name"
 }
 
 render_model() {
-  local model_name effort_level
-  model_name=$(read_json '.model.display_name // empty')
-  [ -z "$model_name" ] && return 0
-  effort_level=$(read_json '.effort.level // empty')
-  printf '%s' "${BOLD}${model_name}${RESET}"
+  [ -z "$model_display_name" ] && return 0
+  printf '%s' "${BOLD}${model_display_name}${RESET}"
   [ -n "$effort_level" ] && printf '%s' "${GRAY} · ${effort_level}${RESET}"
-  [ "$(read_json '.fast_mode // empty')" = "true" ] && printf ' ⚡'
+  [ "$fast_mode" = "true" ] && printf ' ⚡'
   return 0
 }
 
 render_prompt_cache() {
-  local hit_percentage misses color
-  hit_percentage=$(read_json ".prompt_cache.hit_ratio // empty | . * ${PERCENT_MULTIPLIER} | floor")
-  [ -z "$hit_percentage" ] && return 0
-  color="$GRAY"
-  [ "$(read_json '.prompt_cache.warm // empty')" = "true" ] && color="$GREEN_BOLD"
-  printf '%s' "${color}♻ ${hit_percentage}%${RESET}"
-  misses=$(read_json '.prompt_cache.misses // 0 | floor')
+  local misses="${prompt_cache_misses:-0}" color="$GRAY"
+  [ -z "$prompt_cache_hit_percentage" ] && return 0
+  [ "$prompt_cache_warm" = "true" ] && color="$GREEN_BOLD"
+  printf '%s' "${color}♻ ${prompt_cache_hit_percentage}%${RESET}"
   [ "$misses" -gt 0 ] && printf ' %s' "${RED_BOLD}✗${misses}${RESET}"
   return 0
 }
 
 render_lines() {
-  local added removed
-  added=$(read_json '.cost.total_lines_added // 0 | floor')
-  removed=$(read_json '.cost.total_lines_removed // 0 | floor')
+  local added="${cost_total_lines_added:-0}" removed="${cost_total_lines_removed:-0}"
   [ "$added" -eq 0 ] && [ "$removed" -eq 0 ] && return 0
   printf '%s %s' "${GREEN}+${added}${RESET}" "${RED}-${removed}${RESET}"
 }
 
 render_duration() {
-  local total_minutes
-  total_minutes=$(read_json ".cost.total_duration_ms // empty | . / ${MILLISECONDS_PER_MINUTE} | floor")
-  [ -z "$total_minutes" ] && return 0
-  if [ "$total_minutes" -ge "$MINUTES_PER_HOUR" ]; then
-    printf '%s' "${GRAY}⏱ $((total_minutes / MINUTES_PER_HOUR))h$(printf '%02d' "$((total_minutes % MINUTES_PER_HOUR))")${RESET}"
+  [ -z "$cost_total_minutes" ] && return 0
+  if [ "$cost_total_minutes" -ge "$MINUTES_PER_HOUR" ]; then
+    printf '%s' "${GRAY}⏱ $((cost_total_minutes / MINUTES_PER_HOUR))h$(printf '%02d' "$((cost_total_minutes % MINUTES_PER_HOUR))")${RESET}"
   else
-    printf '%s' "${GRAY}⏱ ${total_minutes}m${RESET}"
+    printf '%s' "${GRAY}⏱ ${cost_total_minutes}m${RESET}"
   fi
 }
 
@@ -315,6 +377,8 @@ print_wrapped_line() {
   [ -n "$row" ] && printf '%s\n' "$row"
   return 0
 }
+
+load_session_fields
 
 render_line_one_segments | print_wrapped_line
 render_line_two_segments | print_wrapped_line
