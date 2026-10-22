@@ -15,7 +15,8 @@
   },
   "statusLine": {
     "type": "command",
-    "command": "bash \"$HOME/dotfiles/claude/statusline.sh\""
+    "command": "bash \"$HOME/dotfiles/claude/statusline.sh\"",
+    "refreshInterval": 10
   },
   "hooks": {
     "PreToolUse": [
