@@ -30,7 +30,7 @@
 | `Alt+1` … `Alt+9` | Aller à la window n (sans préfixe) |
 | `p` | Précédente |
 | `1` … `9` | Aller à la window n |
-| `w` | Arborescence des sessions et des onglets |
+| `w` | Onglets de la session (popup, on tape pour filtrer) |
 | `,` | Renommer |
 | `&` | Fermer |
 

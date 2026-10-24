@@ -5,6 +5,7 @@
 Nouvel onglet (Claude + shells, Claude, shell)	Alt+n	source-file ~/dotfiles/tmux/new-tab-menu.conf
 Relancer les Claude Code inactifs (dernière version)		run-shell "~/dotfiles/tmux/restart-claude.sh"
 Changer de session (ou en ouvrir une depuis un projet)	^A s	display-popup -EE -w 60% -h 60% "~/dotfiles/tmux/session-picker.sh"
+Changer d'onglet	^A w	display-popup -EE -w 60% -h 60% "~/dotfiles/tmux/window-picker.sh"
 Notes du projet	^A n	display-popup -EE -w 80% -h 80% -d "#{pane_current_path}" "~/dotfiles/tmux/notes.sh"
 Couper le pane côte à côte	^A %	split-window -h -c "#{pane_current_path}"
 Couper le pane l'un sur l'autre	^A "	split-window -v -c "#{pane_current_path}"
@@ -19,7 +20,7 @@ Onglet précédent	^A p	previous-window
 Déplacer l'onglet vers la gauche		swap-window -d -t :-1
 Déplacer l'onglet vers la droite		swap-window -d -t :+1
 Remettre la disposition Claude + shells		select-layout main-vertical
-Arborescence sessions et onglets	^A w	choose-tree -Zw
+Arborescence sessions et onglets		choose-tree -Zw
 Défiler / copier (mode copie)	^A [	copy-mode
 Se détacher	^A d	detach-client
 Afficher la fiche d'aide	^A h	display-popup -E -w 80% -h 80% "glow -p ~/dotfiles/tmux/cheatsheet.md || less ~/dotfiles/tmux/cheatsheet.md"
