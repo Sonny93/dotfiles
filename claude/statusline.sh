@@ -101,7 +101,6 @@ render_git() {
 render_identity() {
   local clock
   printf -v clock '%(%H:%M)T' -1
-  [ -n "$MACHINE_BADGE" ] && printf '%s ' "$MACHINE_BADGE"
   printf '%s' "${GRAY_BOLD}${USER:-$(id -un)}${RESET}${GRAY}@${HOSTNAME%%.*} ${clock}${RESET}"
 }
 
@@ -290,6 +289,7 @@ render_location() {
   local directory git_part
   directory=$(render_directory)
   git_part=$(render_git "$directory")
+  [ -n "$MACHINE_BADGE" ] && printf '%s ' "$MACHINE_BADGE"
   printf '%s' "${CYAN_BOLD}${directory/#"$HOME"/\~}${RESET}"
   [ -n "$git_part" ] && printf ' %s' "$git_part"
   return 0
