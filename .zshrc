@@ -64,6 +64,35 @@ if [[ $SHLVL -eq 1 ]]; then
   cd
 fi
 
+if (( $+commands[tmux] )); then
+  project_directory() {
+    local gitRootPath
+    gitRootPath=$(git rev-parse --show-toplevel 2>/dev/null)
+    print -r -- "${gitRootPath:-$PWD}"
+  }
+
+  project_session_name() {
+    local sessionName="${$(project_directory):t}"
+    print -r -- "${sessionName//[.:]/_}"
+  }
+
+  cc() {
+    local projectDirectory sessionName
+    projectDirectory=$(project_directory)
+    sessionName=$(project_session_name)
+
+    if ! tmux has-session -t "=$sessionName" 2>/dev/null; then
+      ~/dotfiles/tmux/workspace.sh "$projectDirectory" "$sessionName" >/dev/null
+    fi
+
+    if [[ -z "$TMUX" ]]; then
+      tmux attach-session -t "=$sessionName"
+      return
+    fi
+    tmux switch-client -t "=$sessionName"
+  }
+fi
+
 TAB_TITLE_MAX_COMMAND_LENGTH=30
 
 set_tab_title() {

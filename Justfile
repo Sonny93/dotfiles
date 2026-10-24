@@ -10,7 +10,7 @@ help:
     @just --list --unsorted
 
 # Set up or update a dev machine (the XPS included)
-dev: apt shell mise git gh-auth claude doctor-dev
+dev: apt shell mise tmux git gh-auth claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
@@ -59,6 +59,14 @@ mise:
     mise install
     mise upgrade
     echo "Tools installed/updated via mise."
+
+# Link the tmux config
+tmux:
+    #!/usr/bin/env bash
+    set -e
+    mkdir -p {{home}}/.config/tmux
+    ln -sf {{dotfiles}}/tmux/tmux.conf {{home}}/.config/tmux/tmux.conf
+    echo "tmux config linked."
 
 # Wire the repo git config and gitleaks hook
 git:
@@ -272,6 +280,7 @@ doctor-dev: doctor-server
     else
         warn "git hooks not wired, run 'just git'"
     fi
+    check_link "{{home}}/.config/tmux/tmux.conf" "{{dotfiles}}/tmux/tmux.conf" tmux
     eval "$(mise env -s bash)"
     claude_home="{{home}}/.claude"
     repo_config="{{dotfiles}}/claude"
