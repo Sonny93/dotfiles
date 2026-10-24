@@ -27,7 +27,7 @@
 | Touche | Effet |
 |---|---|
 | `Alt+n` / `c` | Nouvel onglet (menu : Claude + shells, Claude, shell) ; `Alt+n` sans préfixe |
-| `Alt+1` … `Alt+9` | Aller à la window n (sans préfixe) |
+| `Alt+1` … `Alt+9` | Aller à la window n (sans préfixe) ; en AZERTY aussi `Alt+&` … `Alt+ç` |
 | `p` | Précédente |
 | `1` … `9` | Aller à la window n |
 | `w` | Onglets de la session (popup, on tape pour filtrer) |
