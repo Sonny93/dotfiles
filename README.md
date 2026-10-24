@@ -118,7 +118,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `tmux` (lien de la config), `git` (config + hook gitleaks), `gh-auth`, `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks), `gh-auth`, `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -234,7 +234,7 @@ exec zsh
 | `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
-| `just tmux` | Lier la config tmux (`~/.config/tmux/tmux.conf`) | ✓ | |
+| `just tmux` | Lier la config tmux (`~/.config/tmux/tmux.conf`) et le thème micro Cobalt2 (`~/.config/micro/colorschemes/cobalt2.micro`) | ✓ | |
 | `just git` | Config git du repo + hook gitleaks | ✓ | |
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
 | `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills) et fusionner les réglages de base | ✓ | |
@@ -276,7 +276,7 @@ tmux se résume à deux notions : la session (en général un projet) et l'ongle
 
 `Ctrl+A` puis `s` ouvre un sélecteur de sessions et de projets (fzf dans un popup) : d'abord les sessions ouvertes (la courante est marquée), puis les dossiers de `~/dev` et `~/dotfiles` sans session. `Entrée` bascule vers la session, en la créant avec « Claude + shells » pour un projet, `Échap` ferme sans rien faire (`tmux/session-picker.sh`). `Ctrl+A` puis `w` garde l'arborescence native des sessions et des onglets.
 
-`Ctrl+A` puis `n` ouvre les notes libres du projet dans un popup (micro, raccourcis à la VS Code : `Ctrl+S` sauve, `Ctrl+Q` ferme, sauvegarde automatique). Le fichier est `~/notes/<projet>.md`, hors des repos ; le projet est le dossier de la racine git du pane courant, créé avec un titre au premier usage (`tmux/notes.sh`). Cette touche remplace le `next-window` natif de tmux : `Alt+1` … `Alt+9` changent d'onglet.
+`Ctrl+A` puis `n` ouvre les notes libres du projet dans un popup (micro en thème Cobalt2, `micro/colorschemes/cobalt2.micro`, lié par `just tmux` ; raccourcis à la VS Code : `Ctrl+S` sauve, `Ctrl+Q` ferme, sauvegarde automatique). Le fichier est `~/notes/<projet>.md`, hors des repos ; le projet est le dossier de la racine git du pane courant, créé avec un titre au premier usage (`tmux/notes.sh`). Cette touche remplace le `next-window` natif de tmux : `Alt+1` … `Alt+9` changent d'onglet.
 
 La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les onglets, chacun nommé d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de l'onglet colore son onglet en rose ; `claude/settings.json` règle `preferredNotifChannel` sur `terminal_bell` pour que Claude sonne quand il a fini ou attend une réponse. `Alt+1` … `Alt+9` changent d'onglet sans préfixe.
 
