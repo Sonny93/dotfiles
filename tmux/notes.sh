@@ -10,6 +10,7 @@ SCRIPT_DIRECTORY="$(dirname "${BASH_SOURCE[0]}")"
 readonly SCRIPT_DIRECTORY
 readonly NOTES_DIRECTORY="$HOME/notes"
 readonly AUTOSAVE_INTERVAL_SECONDS=1
+readonly COLORSCHEME="cobalt2"
 
 # shellcheck source-path=SCRIPTDIR source=projects.sh
 source "$SCRIPT_DIRECTORY/projects.sh"
@@ -31,7 +32,7 @@ main() {
     project=$(session_name_for "$(find_project_root)")
     notes_file="$NOTES_DIRECTORY/$project.md"
     ensure_notes_file "$notes_file" "$project"
-    exec micro -autosave "$AUTOSAVE_INTERVAL_SECONDS" -softwrap true "$notes_file"
+    exec micro -autosave "$AUTOSAVE_INTERVAL_SECONDS" -softwrap true -colorscheme "$COLORSCHEME" -truecolor on "$notes_file"
 }
 
 main "$@"

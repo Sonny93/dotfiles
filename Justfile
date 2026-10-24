@@ -60,13 +60,15 @@ mise:
     mise upgrade
     echo "Tools installed/updated via mise."
 
-# Link the tmux config
+# Link the tmux config and the micro colorscheme used by the notes popup
 tmux:
     #!/usr/bin/env bash
     set -e
     mkdir -p {{home}}/.config/tmux
     ln -sf {{dotfiles}}/tmux/tmux.conf {{home}}/.config/tmux/tmux.conf
-    echo "tmux config linked."
+    mkdir -p {{home}}/.config/micro/colorschemes
+    ln -sf {{dotfiles}}/micro/colorschemes/cobalt2.micro {{home}}/.config/micro/colorschemes/cobalt2.micro
+    echo "tmux config and micro colorscheme linked."
 
 # Wire the repo git config and gitleaks hook
 git:
@@ -281,6 +283,7 @@ doctor-dev: doctor-server
         warn "git hooks not wired, run 'just git'"
     fi
     check_link "{{home}}/.config/tmux/tmux.conf" "{{dotfiles}}/tmux/tmux.conf" tmux
+    check_link "{{home}}/.config/micro/colorschemes/cobalt2.micro" "{{dotfiles}}/micro/colorschemes/cobalt2.micro" tmux
     eval "$(mise env -s bash)"
     claude_home="{{home}}/.claude"
     repo_config="{{dotfiles}}/claude"
