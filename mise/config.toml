@@ -21,3 +21,4 @@ yarn = "1"
 
 [settings]
 minimum_release_age_excludes = ["claude"]
+idiomatic_version_file_enable_tools = ["node"]
