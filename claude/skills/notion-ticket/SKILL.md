@@ -2,8 +2,8 @@
 name: notion-ticket
 description: >
   Work a Notion ticket end-to-end: fetch it, flag it In Progress, do the
-  work, keep the ticket updated, then stop and wait for the user's
-  go-ahead before committing anything. Use when the user says "occupe-toi
+  work, keep the ticket updated, stop and wait for the user's go-ahead
+  before committing anything, then move it to Done once committed. Use when the user says "occupe-toi
   du ticket notion <id>", "prends le ticket <id>", or otherwise hands off
   a Notion ticket/card to work on. Requires a ticket ID or URL as
   argument — if none is given, ask for it and do nothing else.
@@ -53,15 +53,11 @@ ask), key decisions, any follow-up left open, relevant commit-to-be
 scope. Use `notion-update-page` / append content as needed. Keep it
 factual and skimmable, not a transcript of the session.
 
-### 5. Stop — do not move the ticket, do not commit
+### 5. Stop — do not commit yet
 
 When the work is done:
 
-- **Do not** change `Status` to `Done` or move the ticket. The user
-  reviews and validates the result themselves, then moves it to the top
-  of the Done column by hand. Leave it at `In Progress` (or set to
-  whatever intermediate status reflects "ready for review" if the
-  database has one — otherwise leave it as `In Progress`).
+- Leave `Status` at `In Progress` while the user reviews the result.
 - **Do not** run `git commit` (or push). Report that the work is ready
   for review and wait for the user's explicit go-ahead.
 
@@ -78,3 +74,12 @@ Once the user gives the green light:
   wiring), split into one commit per logical concern rather than one
   giant commit — but don't over-split a repetitive mechanical change
   into one commit per file/item. Ask if the right granularity is unclear.
+
+### 7. Move the ticket to Done
+
+Once the commits are in, set `Status` to `Done` via `notion-update-page`.
+Do the same for every ticket created or flagged In Progress during this
+session (e.g. sub-tickets filed for findings) whose work is committed;
+leave any whose work is still open at `In Progress` and say so in the
+report. The board is sorted by last edited time, so the ticket lands at
+the top of the Done column on its own.
