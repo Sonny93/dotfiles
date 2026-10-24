@@ -276,6 +276,8 @@ Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH t
 
 La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les fenêtres, chacune nommée d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de la fenêtre colore son onglet en rose ; `claude/settings.json` règle `preferredNotifChannel` sur `terminal_bell` pour que Claude sonne quand il a fini ou attend une réponse. `Alt+1` … `Alt+9` changent de fenêtre sans préfixe.
 
+`Ctrl+A` puis `Ctrl+K` ouvre une palette de commandes (fzf dans un popup) : les actions de `tmux/palette.tsv` (libellé, raccourci, commande tmux ; une action = une ligne), `Entrée` lance la commande sur le pane d'où la palette a été ouverte, `Échap` ferme (`tmux/command-palette.sh`).
+
 Les raccourcis vivent dans `tmux/cheatsheet.md` ; `Ctrl+A` puis `h` l'ouvre dans tmux.
 
 `tmux ls` liste les sessions. La souris est activée : pour sélectionner du texte avec Tabby, maintenir Shift pendant le glisser.
