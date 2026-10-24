@@ -276,6 +276,8 @@ tmux se résume à deux notions : la session (en général un projet) et l'ongle
 
 `Ctrl+A` puis `s` ouvre un sélecteur de sessions et de projets (fzf dans un popup) : d'abord les sessions ouvertes (la courante est marquée), puis les dossiers de `~/dev` et `~/dotfiles` sans session. `Entrée` bascule vers la session, en la créant avec « Claude + shells » pour un projet, `Échap` ferme sans rien faire (`tmux/session-picker.sh`). `Ctrl+A` puis `w` garde l'arborescence native des sessions et des onglets.
 
+`Ctrl+A` puis `n` ouvre les notes libres du projet dans un popup (micro, raccourcis à la VS Code : `Ctrl+S` sauve, `Ctrl+Q` ferme, sauvegarde automatique). Le fichier est `~/notes/<projet>.md`, hors des repos ; le projet est le dossier de la racine git du pane courant, créé avec un titre au premier usage (`tmux/notes.sh`). Cette touche remplace le `next-window` natif de tmux : `Alt+1` … `Alt+9` changent d'onglet.
+
 La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les onglets, chacun nommé d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de l'onglet colore son onglet en rose ; `claude/settings.json` règle `preferredNotifChannel` sur `terminal_bell` pour que Claude sonne quand il a fini ou attend une réponse. `Alt+1` … `Alt+9` changent d'onglet sans préfixe.
 
 `Ctrl+A` puis `Ctrl+K` ouvre une palette de commandes (fzf dans un popup) : les actions de `tmux/palette.tsv` (libellé, raccourci, commande tmux ; une action = une ligne), `Entrée` lance la commande sur le pane d'où la palette a été ouverte, `Échap` ferme (`tmux/command-palette.sh`).
