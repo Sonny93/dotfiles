@@ -3,12 +3,11 @@
 # Usage: session-picker.sh <current-session>
 #   meant to run inside a tmux popup (prefix + s); Esc or an empty selection closes it without doing anything
 # Lists the open sessions first (the current one is marked), then the projects that have no session yet.
-# The session name rule (`.` and `:` become `_`) is the same as project_session_name in .zshrc, which stays in zsh.
 set -euo pipefail
 
-readonly PROJECTS_ROOT="$HOME/dev"
-readonly EXTRA_PROJECT_DIRECTORIES=("$HOME/dotfiles")
-readonly WORKSPACE_SCRIPT="$(dirname "${BASH_SOURCE[0]}")/workspace.sh"
+SCRIPT_DIRECTORY="$(dirname "${BASH_SOURCE[0]}")"
+readonly SCRIPT_DIRECTORY
+readonly WORKSPACE_SCRIPT="$SCRIPT_DIRECTORY/workspace.sh"
 readonly FIELD_SEPARATOR=$'\t'
 readonly SESSION_KIND="session"
 readonly PROJECT_KIND="project"
@@ -20,6 +19,9 @@ readonly TARGET_FIELD=2
 readonly LABEL_FIELD=3
 readonly SESSION_PREVIEW_FORMAT=' #I  #{pane_title}'
 
+# shellcheck source-path=SCRIPTDIR source=projects.sh
+source "$SCRIPT_DIRECTORY/projects.sh"
+
 list_sessions() {
     local current_session="$1" session_name label
     while IFS= read -r session_name; do
@@ -29,20 +31,13 @@ list_sessions() {
     done < <(tmux list-sessions -F '#{session_name}' | sort)
 }
 
-session_name_for() {
-    local name="${1##*/}"
-    printf '%s\n' "${name//[.:]/_}"
-}
-
 list_new_projects() {
     local directory session_name
-    for directory in "$PROJECTS_ROOT"/*/ "${EXTRA_PROJECT_DIRECTORIES[@]}"; do
-        [[ -d "$directory" ]] || continue
-        directory="${directory%/}"
+    while IFS= read -r directory; do
         session_name=$(session_name_for "$directory")
         tmux has-session -t "=$session_name" 2>/dev/null && continue
         printf '%s\t%s\t%s\n' "$PROJECT_KIND" "$directory" "${directory##*/}  $NEW_SESSION_LABEL"
-    done | sort
+    done < <(list_project_directories) | sort
 }
 
 list_entries() {
