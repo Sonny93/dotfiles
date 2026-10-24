@@ -13,6 +13,7 @@
       }
     }
   },
+  "preferredNotifChannel": "terminal_bell",
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/dotfiles/claude/statusline.sh\"",

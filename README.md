@@ -1,6 +1,6 @@
 # dotfiles
 
-zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, machine de dev et serveur.
+zsh, git, mise, tmux, Starship et Tabby, répartis par machine : Windows 11, XPS, machine de dev et serveur.
 
 | Machine | Contenu | Vérifier avec |
 |---|---|---|
@@ -22,6 +22,7 @@ zsh, git, mise, Starship et Tabby, répartis par machine : Windows 11, XPS, mach
 - [Commandes](#commandes)
 - [Shell](#shell)
 - [Tabby](#tabby)
+- [tmux](#tmux)
 - [Claude Code](#claude-code)
 - [Sécurité](#sécurité)
 - [MOTD](#motd)
@@ -117,7 +118,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `git` (config + hook gitleaks), `gh-auth`, `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `tmux` (lien de la config), `git` (config + hook gitleaks), `gh-auth`, `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -228,11 +229,12 @@ exec zsh
 
 | Commande | Rôle | Dev / XPS | Serveur |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `shell`, `mise`, `git`, `gh-auth`, `claude`, `doctor-dev` | ✓ | |
+| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `claude`, `doctor-dev` | ✓ | |
 | `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
 | `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
+| `just tmux` | Lier la config tmux (`~/.config/tmux/tmux.conf`) | ✓ | |
 | `just git` | Config git du repo + hook gitleaks | ✓ | |
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
 | `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills) et fusionner les réglages de base | ✓ | |
@@ -263,6 +265,18 @@ Le script :
 4. garde le profil par défaut s'il pointe vers un `Host` de `~/.ssh/config`, sinon demande lequel ouvrir au lancement (un `Host` ou le shell local).
 
 Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/config` et les affiche sous la forme `mon-serveur (.ssh/config)`. Leurs réglages communs viennent de `profileDefaults.ssh` dans `tabby/config.yaml` : titre d'onglet envoyé par le shell distant (pastille colorée et nom de la machine, puis dossier ou commande en cours) et nouvel onglet / SFTP ouvert dans le dossier courant. Le `.zshrc` envoie les deux à chaque prompt, aucun profil à modifier à la main.
+
+## tmux
+
+Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH tombe. `tmux/tmux.conf` (lié par `just tmux`) ne contient que ce qui diffère des valeurs par défaut de tmux. Le préfixe est **Ctrl+A** (Ctrl+B sert à Claude Code pour passer une commande en arrière-plan).
+
+`cc`, lancé depuis un projet (n'importe quel sous-dossier d'un repo git), ouvre ou rattache la session tmux du projet, nommée d'après le dossier de la racine git, avec le workspace dans la première fenêtre : Claude Code à gauche, deux shells empilés à droite (`tmux/workspace.sh`, aussi appelé par `Alt+n` pour ouvrir un workspace dans la session courante). Quand Claude se termine, son pane reste ouvert sur un shell. Dans tmux, `cc` bascule vers la session sans en imbriquer une autre. Sans tmux (serveurs), `cc` reste le compilateur C.
+
+La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les fenêtres, chacune nommée d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de la fenêtre colore son onglet en rose ; `claude/settings.json` règle `preferredNotifChannel` sur `terminal_bell` pour que Claude sonne quand il a fini ou attend une réponse. `Alt+1` … `Alt+9` changent de fenêtre sans préfixe.
+
+Les raccourcis vivent dans `tmux/cheatsheet.md` ; `Ctrl+A` puis `h` l'ouvre dans tmux.
+
+`tmux ls` liste les sessions. La souris est activée : pour sélectionner du texte avec Tabby, maintenir Shift pendant le glisser.
 
 ## Claude Code
 
