@@ -28,7 +28,7 @@
 |---|---|
 | `Alt+n` / `c` | Nouvel onglet (menu : Claude + shells, Claude, shell) ; `Alt+n` sans préfixe |
 | `Alt+1` … `Alt+9` | Aller à la window n (sans préfixe) |
-| `n` / `p` | Suivante / précédente |
+| `p` | Précédente |
 | `1` … `9` | Aller à la window n |
 | `w` | Arborescence des sessions et des onglets |
 | `,` | Renommer |
@@ -53,6 +53,12 @@
 | `d` | Se détacher : tout continue de tourner |
 
 Depuis l'extérieur : `t` rattache la dernière session, `t .` rouvre celle du projet, `tmux ls` les liste.
+
+## Notes
+
+| Touche | Effet |
+|---|---|
+| `n` | Notes du projet (popup micro, `Ctrl+S` sauver, `Ctrl+Q` fermer, fichier `~/notes/<projet>.md`) |
 
 ## Défilement et copie
 
