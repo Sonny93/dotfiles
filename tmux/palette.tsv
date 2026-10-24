@@ -5,6 +5,7 @@
 Nouvel espace de travail (Claude + 2 shells)	Alt+n	run-shell "~/dotfiles/tmux/workspace.sh #{q:pane_current_path} #{q:session_name}"
 Nouvel onglet shell	^A c	new-window -c "#{pane_current_path}"
 Nouvel onglet Claude	^A C	new-window -c "#{pane_current_path}" "claude; exec zsh"
+Relancer les Claude Code inactifs (dernière version)		run-shell "~/dotfiles/tmux/restart-claude.sh"
 Choisir un projet	^A g	display-popup -EE -w 60% -h 60% "~/dotfiles/tmux/project-picker.sh"
 Couper le pane côte à côte	^A %	split-window -h -c "#{pane_current_path}"
 Couper le pane l'un sur l'autre	^A "	split-window -v -c "#{pane_current_path}"

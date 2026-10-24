@@ -278,6 +278,8 @@ La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la pre
 
 `Ctrl+A` puis `Ctrl+K` ouvre une palette de commandes (fzf dans un popup) : les actions de `tmux/palette.tsv` (libellé, raccourci, commande tmux ; une action = une ligne), `Entrée` lance la commande sur le pane d'où la palette a été ouverte, `Échap` ferme (`tmux/command-palette.sh`).
 
+Après `update`, les instances Claude Code déjà ouvertes gardent l'ancien binaire : l'action « Relancer les Claude Code inactifs » de la palette relance celles qui sont inactives avec `claude --resume`, passe celles qui travaillent et celles déjà à jour (`tmux/restart-claude.sh`).
+
 Les raccourcis vivent dans `tmux/cheatsheet.md` ; `Ctrl+A` puis `h` l'ouvre dans tmux.
 
 `tmux ls` liste les sessions. La souris est activée : pour sélectionner du texte avec Tabby, maintenir Shift pendant le glisser.
