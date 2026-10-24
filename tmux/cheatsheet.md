@@ -8,7 +8,7 @@
 
 **Palette de commandes** : préfixe puis `Ctrl+K` liste toutes les actions avec leur raccourci. On tape pour filtrer, `Entrée` lance, `Échap` ferme.
 
-`cc` depuis un projet : ouvre ou rattache la session du projet, avec la disposition Claude + shells.
+`t` : rattache la dernière session (dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant, avec la disposition Claude + shells. `t <nom>` : session ou projet de ce nom (`Tab` complète).
 
 **Claude + shells** (menu Nouvel onglet, `Alt+n`) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.
 
@@ -49,10 +49,10 @@
 | Touche | Effet |
 |---|---|
 | `s` | Sessions ouvertes + projets (popup) |
-| `$` | Renommer |
+| `$` | Renommer (sans `.` ni `:`, sinon `t <nom>` et `s` ne la trouvent plus) |
 | `d` | Se détacher : tout continue de tourner |
 
-Depuis l'extérieur : `tmux ls` liste les sessions, `cc` rouvre celle du projet.
+Depuis l'extérieur : `t` rattache la dernière session, `t .` rouvre celle du projet, `tmux ls` les liste.
 
 ## Défilement et copie
 
