@@ -4,11 +4,11 @@ add_newline = false
 continuation_prompt = "[.](bright-black) "
 
 format = """
+${env_var.MACHINE_BADGE}\
 $directory\
 $git_branch\
 $git_status\
 $fill \
-${env_var.MACHINE_BADGE}\
 $username\
 $hostname\
 $time
