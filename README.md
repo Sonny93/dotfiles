@@ -272,6 +272,8 @@ Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH t
 
 `cc`, lancé depuis un projet (n'importe quel sous-dossier d'un repo git), ouvre ou rattache la session tmux du projet, nommée d'après le dossier de la racine git, avec le workspace dans la première fenêtre : Claude Code à gauche, deux shells empilés à droite (`tmux/workspace.sh`, aussi appelé par `Alt+n` pour ouvrir un workspace dans la session courante). Quand Claude se termine, son pane reste ouvert sur un shell. Dans tmux, `cc` bascule vers la session sans en imbriquer une autre. Sans tmux (serveurs), `cc` reste le compilateur C.
 
+`Ctrl+A` puis `g` ouvre un sélecteur de projet (fzf dans un popup) : les dossiers de `~/dev` et `~/dotfiles`, `Entrée` bascule vers la session du projet en la créant avec le workspace si besoin, `Échap` ferme sans rien faire (`tmux/project-picker.sh`).
+
 La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les fenêtres, chacune nommée d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de la fenêtre colore son onglet en rose ; `claude/settings.json` règle `preferredNotifChannel` sur `terminal_bell` pour que Claude sonne quand il a fini ou attend une réponse. `Alt+1` … `Alt+9` changent de fenêtre sans préfixe.
 
 Les raccourcis vivent dans `tmux/cheatsheet.md` ; `Ctrl+A` puis `h` l'ouvre dans tmux.
