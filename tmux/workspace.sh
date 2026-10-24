@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Opens a tmux workspace: Claude Code on the left, two shells stacked on the right.
+# Opens the "Claude + shells" layout: Claude Code on the left, two shells stacked on the right.
 # Usage: workspace.sh <directory> <session-name>
-#   adds the workspace as a window of the session, creating the session detached when it is missing
+#   adds the layout as a window of the session, creating the session detached when it is missing
 set -euo pipefail
 
 readonly CLAUDE_COMMAND="claude; exec zsh"
