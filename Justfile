@@ -116,11 +116,8 @@ notes:
     set -e
     notes_directory="{{home}}/notes"
     set_identity() {
-        local login user_id
-        login=$(gh api user --jq .login)
-        user_id=$(gh api user --jq .id)
-        git -C "$notes_directory" config user.name "$login"
-        git -C "$notes_directory" config user.email "${user_id}+${login}@users.noreply.github.com"
+        git -C "$notes_directory" config user.name "notes"
+        git -C "$notes_directory" config user.email "notes@localhost"
     }
     create_remote() {
         gh repo create notes --private --source "$notes_directory" --remote origin --push
