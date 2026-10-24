@@ -48,6 +48,7 @@
 
 | Touche | Effet |
 |---|---|
+| `g` | Choisir un projet (popup) |
 | `s` | Liste des sessions (= les projets) |
 | `$` | Renommer |
 | `d` | Se détacher : tout continue de tourner |
