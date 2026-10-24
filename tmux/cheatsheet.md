@@ -6,6 +6,8 @@
 
 **Préfixe** : appuyer sur `Ctrl+A`, relâcher, puis appuyer sur la touche.
 
+**Palette de commandes** : préfixe puis `Ctrl+K` liste toutes les actions avec leur raccourci. On tape pour filtrer, `Entrée` lance, `Échap` ferme.
+
 `cc` depuis un projet : ouvre ou rattache la session du projet, avec le workspace.
 
 **Workspace** (`Alt+n`, sans préfixe) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.

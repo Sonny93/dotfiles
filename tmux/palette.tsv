@@ -1,0 +1,27 @@
+# Actions of the command palette (prefix + Ctrl+K), read by command-palette.sh.
+# One action per line, three fields separated by a TAB: label, key hint (empty when there is none), tmux command.
+# The tmux command runs as if typed at prefix + :, on the pane, window and session that opened the palette.
+# Lines starting with # are comments. Adding an action = adding one line.
+Nouvel espace de travail (Claude + 2 shells)	Alt+n	run-shell "~/dotfiles/tmux/workspace.sh #{q:pane_current_path} #{q:session_name}"
+Nouvel onglet shell	^A c	new-window -c "#{pane_current_path}"
+Nouvel onglet Claude	^A C	new-window -c "#{pane_current_path}" "claude; exec zsh"
+Choisir un projet	^A g	display-popup -EE -w 60% -h 60% "~/dotfiles/tmux/project-picker.sh"
+Couper le pane côte à côte	^A %	split-window -h -c "#{pane_current_path}"
+Couper le pane l'un sur l'autre	^A "	split-window -v -c "#{pane_current_path}"
+Zoomer / dézoomer le pane	^A z	resize-pane -Z
+Fermer le pane	^A x	confirm-before -p "kill-pane #P? (y/n)" kill-pane
+Fermer les autres panes de l'onglet		confirm-before -p "kill-pane -a #W? (y/n)" "kill-pane -a"
+Fermer l'onglet	^A &	confirm-before -p "kill-window #W? (y/n)" kill-window
+Renommer l'onglet	^A ,	command-prompt -I "#W" { rename-window "%%" }
+Renommer la session	^A $	command-prompt -I "#S" { rename-session "%%" }
+Onglet suivant	^A n	next-window
+Onglet précédent	^A p	previous-window
+Déplacer l'onglet vers la gauche		swap-window -d -t :-1
+Déplacer l'onglet vers la droite		swap-window -d -t :+1
+Remettre la disposition de l'espace de travail		select-layout main-vertical
+Arborescence sessions et onglets	^A w	choose-tree -Zw
+Défiler / copier (mode copie)	^A [	copy-mode
+Se détacher	^A d	detach-client
+Afficher la fiche d'aide	^A h	display-popup -E -w 80% -h 80% "glow -p ~/dotfiles/tmux/cheatsheet.md || less ~/dotfiles/tmux/cheatsheet.md"
+Recharger la config tmux		source-file ~/.config/tmux/tmux.conf ; display-message "Config rechargée"
+Fermer la session courante		confirm-before -p "kill-session #S? (y/n)" kill-session
