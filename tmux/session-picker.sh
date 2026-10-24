@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # Picks a session or a project with fzf and switches the tmux client to it, creating the session with workspace.sh when missing.
-# Usage: session-picker.sh <current-session>
+# Usage: session-picker.sh [<current-session>]
+#   <current-session> defaults to the session of the client tmux sees as current (display-popup does not expand formats)
 #   meant to run inside a tmux popup (prefix + s); Esc or an empty selection closes it without doing anything
 # Lists the open sessions first (the current one is marked), then the projects that have no session yet.
 set -euo pipefail
@@ -75,7 +76,7 @@ main() {
     command -v fzf >/dev/null || { echo "fzf not found on PATH" >&2; exit 1; }
 
     local selection kind target
-    selection=$(pick_entry "${1:?usage: session-picker.sh <current-session>}")
+    selection=$(pick_entry "${1:-$(tmux display-message -p '#{client_session}')}")
     [[ -n "$selection" ]] || return 0
     kind="${selection%%"$FIELD_SEPARATOR"*}"
     target="${selection#*"$FIELD_SEPARATOR"}"
