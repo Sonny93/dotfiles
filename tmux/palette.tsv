@@ -2,11 +2,9 @@
 # One action per line, three fields separated by a TAB: label, key hint (empty when there is none), tmux command.
 # The tmux command runs as if typed at prefix + :, on the pane, window and session that opened the palette.
 # Lines starting with # are comments. Adding an action = adding one line.
-Nouvel espace de travail (Claude + 2 shells)	Alt+n	run-shell "~/dotfiles/tmux/workspace.sh #{q:pane_current_path} #{q:session_name}"
-Nouvel onglet shell	^A c	new-window -c "#{pane_current_path}"
-Nouvel onglet Claude	^A C	new-window -c "#{pane_current_path}" "claude; exec zsh"
+Nouvel onglet (Claude + shells, Claude, shell)	Alt+n	source-file ~/dotfiles/tmux/new-tab-menu.conf
 Relancer les Claude Code inactifs (dernière version)		run-shell "~/dotfiles/tmux/restart-claude.sh"
-Choisir un projet	^A g	display-popup -EE -w 60% -h 60% "~/dotfiles/tmux/project-picker.sh"
+Changer de session (ou en ouvrir une depuis un projet)	^A s	display-popup -EE -w 60% -h 60% "~/dotfiles/tmux/session-picker.sh #{q:session_name}"
 Couper le pane côte à côte	^A %	split-window -h -c "#{pane_current_path}"
 Couper le pane l'un sur l'autre	^A "	split-window -v -c "#{pane_current_path}"
 Zoomer / dézoomer le pane	^A z	resize-pane -Z
@@ -19,7 +17,7 @@ Onglet suivant	^A n	next-window
 Onglet précédent	^A p	previous-window
 Déplacer l'onglet vers la gauche		swap-window -d -t :-1
 Déplacer l'onglet vers la droite		swap-window -d -t :+1
-Remettre la disposition de l'espace de travail		select-layout main-vertical
+Remettre la disposition Claude + shells		select-layout main-vertical
 Arborescence sessions et onglets	^A w	choose-tree -Zw
 Défiler / copier (mode copie)	^A [	copy-mode
 Se détacher	^A d	detach-client
