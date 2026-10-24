@@ -28,6 +28,7 @@ The repo is public. It holds only what grants no access and reveals nothing abou
 | Tabby profiles, knownHosts | Local Tabby config on each machine |
 | Git identity | Each repo's `.git/config`; `~/.gitconfig.local` optional |
 | GitHub token | `gh` on dev machines only (the XPS included) |
+| Notes (`~/notes`) | Private GitHub repo `notes`, cloned on dev machines by `just notes` |
 | Claude Code credentials, MCP tokens, memory, history | `~/.claude/`, `~/.claude.json` on dev machines |
 
 Servers and dev machines receive only the public key. Git over HTTPS through `gh` on dev machines; servers pull anonymously over HTTPS and stay without `gh`. Agent forwarding targets dev machines only, never servers.

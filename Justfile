@@ -10,7 +10,7 @@ help:
     @just --list --unsorted
 
 # Set up or update a dev machine (the XPS included)
-dev: apt shell mise tmux git gh-auth claude doctor-dev
+dev: apt shell mise tmux git gh-auth notes claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
@@ -109,6 +109,45 @@ gh-auth:
         git config --global --add "credential.https://$host.helper" '!gh auth git-credential'
     done
     echo "git uses gh for GitHub over HTTPS."
+
+# Set up ~/notes as a git repo backed by the private GitHub repo notes
+notes:
+    #!/usr/bin/env bash
+    set -e
+    notes_directory="{{home}}/notes"
+    set_identity() {
+        local login user_id
+        login=$(gh api user --jq .login)
+        user_id=$(gh api user --jq .id)
+        git -C "$notes_directory" config user.name "$login"
+        git -C "$notes_directory" config user.email "${user_id}+${login}@users.noreply.github.com"
+    }
+    create_remote() {
+        gh repo create notes --private --source "$notes_directory" --remote origin --push
+    }
+    if [ -d "$notes_directory/.git" ]; then
+        set_identity
+        git -C "$notes_directory" remote get-url origin >/dev/null 2>&1 || create_remote
+        echo "Notes repo already set up."
+        exit 0
+    fi
+    if gh repo view notes >/dev/null 2>&1; then
+        if [ -n "$(ls -A "$notes_directory" 2>/dev/null)" ]; then
+            echo "$notes_directory is not empty: move it away, then run 'just notes' again."
+            exit 1
+        fi
+        gh repo clone notes "$notes_directory"
+        set_identity
+        echo "Notes repo cloned."
+        exit 0
+    fi
+    mkdir -p "$notes_directory"
+    git -C "$notes_directory" init -q -b main
+    set_identity
+    git -C "$notes_directory" add -A
+    git -C "$notes_directory" commit -q --allow-empty -m "Initialize notes"
+    create_remote
+    echo "Notes repo created."
 
 # Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills) and merge the base settings
 claude:
@@ -284,6 +323,11 @@ doctor-dev: doctor-server
     fi
     check_link "{{home}}/.config/tmux/tmux.conf" "{{dotfiles}}/tmux/tmux.conf" tmux
     check_link "{{home}}/.config/micro/colorschemes/cobalt2.micro" "{{dotfiles}}/micro/colorschemes/cobalt2.micro" tmux
+    if [ -d "{{home}}/notes/.git" ] && git -C "{{home}}/notes" remote get-url origin >/dev/null 2>&1; then
+        ok "~/notes is a git repo with a remote"
+    else
+        warn "~/notes is not a git repo with a remote, run 'just notes'"
+    fi
     eval "$(mise env -s bash)"
     claude_home="{{home}}/.claude"
     repo_config="{{dotfiles}}/claude"
