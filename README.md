@@ -118,7 +118,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `apt`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -229,9 +229,10 @@ exec zsh
 
 | Commande | Rôle | Dev / XPS | Serveur |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
+| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
 | `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
 | `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
+| `just build-deps` | Installer les paquets système pour compiler tmux (`build-essential`, `libncurses-dev`, `bison`) | ✓ | |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
 | `just tmux` | Lier la config tmux (`~/.config/tmux/tmux.conf`) et le thème micro Cobalt2 (`~/.config/micro/colorschemes/cobalt2.micro`) | ✓ | |
@@ -269,7 +270,7 @@ Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/conf
 
 ## tmux
 
-Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH tombe. `tmux/tmux.conf` (lié par `just tmux`) ne contient que ce qui diffère des valeurs par défaut de tmux. Le préfixe est **Ctrl+A** (Ctrl+B sert à Claude Code pour passer une commande en arrière-plan).
+Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH tombe. mise compile tmux depuis ses sources (plugin `mise-tmux`, avec `build-essential`, `libncurses-dev` et `bison` installés par `just build-deps`) : les binaires précompilés de `tmux/tmux-builds` ont des semaines de retard sur les versions de tmux. `tmux/tmux.conf` (lié par `just tmux`) ne contient que ce qui diffère des valeurs par défaut de tmux. Le préfixe est **Ctrl+A** (Ctrl+B sert à Claude Code pour passer une commande en arrière-plan).
 
 `t` ouvre ou rattache une session tmux. `t .` (ou tout chemin, par exemple `t ~/dev/app`), lancé depuis un projet (n'importe quel sous-dossier d'un repo git), ouvre ou rattache la session du projet, nommée d'après le dossier de la racine git, avec la disposition « Claude + shells » dans le premier onglet : Claude Code à gauche, deux shells empilés à droite (`tmux/workspace.sh`). `t <nom>` rattache la session de ce nom, ou la crée si `<nom>` est un projet connu (`~/dev/<nom>` ou `~/dotfiles`) ; `Tab` complète les sessions et les projets. `t` seul rattache la dernière session, ou ouvre le sélecteur de sessions quand on est déjà dans tmux. Quand Claude se termine, son pane reste ouvert sur un shell. Dans tmux, `t` bascule vers la session sans en imbriquer une autre.
 

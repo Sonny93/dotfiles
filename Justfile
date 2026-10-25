@@ -1,6 +1,7 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 shell_tools := 'starship fzf just fastfetch'
+build_packages := 'build-essential libncurses-dev bison'
 
 [private]
 default: help
@@ -10,7 +11,7 @@ help:
     @just --list --unsorted
 
 # Set up or update a dev machine (the XPS included)
-dev: apt shell mise tmux git gh-auth notes claude doctor-dev
+dev: apt build-deps shell mise tmux git gh-auth notes claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
@@ -28,6 +29,13 @@ apt:
     sudo apt update
     sudo apt full-upgrade
     sudo apt autoremove
+
+# Install the system packages mise needs to build tools from source (tmux)
+build-deps:
+    #!/usr/bin/env bash
+    set -e
+    sudo apt install -y {{build_packages}}
+    echo "Build dependencies installed."
 
 # Set up zsh, Starship and the mise tools the shell needs
 shell:
@@ -317,6 +325,15 @@ doctor-dev: doctor-server
         ok "git hooks wired"
     else
         warn "git hooks not wired, run 'just git'"
+    fi
+    missing_build_packages=0
+    for package in {{build_packages}}; do
+        [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" = "install ok installed" ] || missing_build_packages=1
+    done
+    if [ "$missing_build_packages" = 0 ]; then
+        ok "build packages installed"
+    else
+        warn "build packages missing, run 'just build-deps'"
     fi
     check_link "{{home}}/.config/tmux/tmux.conf" "{{dotfiles}}/tmux/tmux.conf" tmux
     check_link "{{home}}/.config/micro/colorschemes/cobalt2.micro" "{{dotfiles}}/micro/colorschemes/cobalt2.micro" tmux
