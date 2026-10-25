@@ -2,9 +2,12 @@
 # Opens the "Claude + shells" layout: Claude Code on the left, two shells stacked on the right.
 # Usage: workspace.sh <directory> <session-name>
 #   adds the layout as a window of the session, creating the session detached when it is missing
+# A new session resumes the latest Claude conversation of the directory (after a tmux restart, for instance);
+# a window added to an existing session starts a fresh one, so two tabs never share a conversation
 set -euo pipefail
 
 readonly CLAUDE_COMMAND="claude; exec zsh"
+readonly RESUMED_CLAUDE_COMMAND="claude --continue; exec zsh"
 readonly MAIN_LAYOUT="main-vertical"
 
 readonly directory="${1:?usage: workspace.sh <directory> <session-name>}"
@@ -15,7 +18,7 @@ create_claude_window() {
         tmux new-window -t "=$session_name:" -c "$directory" -P -F '#{window_id}' "$CLAUDE_COMMAND"
         return
     fi
-    tmux new-session -d -s "$session_name" -c "$directory" -P -F '#{window_id}' "$CLAUDE_COMMAND"
+    tmux new-session -d -s "$session_name" -c "$directory" -P -F '#{window_id}' "$RESUMED_CLAUDE_COMMAND"
 }
 
 window_id=$(create_claude_window)
