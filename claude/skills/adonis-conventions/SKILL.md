@@ -265,6 +265,15 @@ router.group(() => {
 
 ---
 
+# Environment variables
+
+- An env var exists only for a value that differs between deployments (host, port, URLs, credentials, log level) or is a secret
+- A value the code fixes is a constant in config, not an env var — e.g. the session store is always `database`: `store: app.inTest ? 'memory' : 'database'`, no `SESSION_DRIVER`
+- Branch on `app.inTest` / `app.inProduction` instead of adding a switch variable per environment
+- Every env var is validated in `start/env.ts` and listed in `.env.example`; delete it from both (and from `Dockerfile` / compose) as soon as the code stops needing it
+
+---
+
 # Testing — Japa
 
 - Feature tests for every controller route: happy path + main error cases
