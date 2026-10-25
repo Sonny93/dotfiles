@@ -65,7 +65,8 @@ Depuis l'extérieur : `t` rattache la dernière session, `t .` rouvre celle du p
 | Action | Effet |
 |---|---|
 | molette | Remonter dans l'historique |
-| `Shift` + glisser | Sélectionner avec Tabby |
+| glisser | Copier au relâchement, dans un seul pane (la sélection reste, `q` ou `Échap` pour sortir) |
+| `Shift` + glisser | Sélectionner avec Tabby, puis `Ctrl+Shift+C` |
 | `[` | Mode copie (`q` pour sortir) |
 
 ## Aide
