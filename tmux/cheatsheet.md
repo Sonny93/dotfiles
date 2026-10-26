@@ -30,7 +30,6 @@
 | `Alt+1` … `Alt+9` | Aller à la window n (sans préfixe) ; en AZERTY aussi `Alt+&` … `Alt+ç` |
 | `p` | Précédente |
 | `1` … `9` | Aller à la window n |
-| `w` | Onglets de la session (popup, on tape pour filtrer) |
 | `,` | Renommer |
 | `&` | Fermer |
 
@@ -48,7 +47,7 @@
 
 | Touche | Effet |
 |---|---|
-| `s` | Sessions ouvertes + projets (popup) |
+| `s` | Sessions, leurs onglets et projets sans session (popup, on tape pour filtrer) |
 | `$` | Renommer (sans `.` ni `:`, sinon `t <nom>` et `s` ne la trouvent plus) |
 | `d` | Se détacher : tout continue de tourner |
 
