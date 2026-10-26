@@ -52,6 +52,8 @@
 | `$` | Renommer (sans `.` ni `:`, sinon `t <nom>` et `s` ne la trouvent plus) |
 | `d` | Se détacher : tout continue de tourner |
 
+Fermer le dernier onglet d'une session bascule sur la session utilisée juste avant, au lieu de quitter tmux.
+
 Depuis l'extérieur : `t` rattache la dernière session, `t .` rouvre celle du projet, `tmux ls` les liste.
 
 ## Notes
