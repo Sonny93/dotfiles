@@ -3,7 +3,7 @@
 # Usage: notes.sh
 #   meant to run inside a tmux popup (prefix + n) started in the pane's current path
 # The project is the git root directory of $PWD (or $PWD itself outside a repo), named like its session.
-# Notes live in ~/notes/<project>.md, outside every repo; Ctrl+S saves, Ctrl+Q closes (autosave keeps the text anyway).
+# Notes live in ~/notes/<project>.md, outside every repo; Ctrl+S saves, Ctrl+Q closes (autosave keeps the text anyway), Ctrl+C copies to the client clipboard (OSC 52).
 # ~/notes is a git repo set up by `just notes`: pulled before micro opens, committed when it closes, pushed in the background.
 # Problems are reported with tmux display-message (they outlive the popup) and never prevent the notes from opening.
 set -euo pipefail
@@ -84,7 +84,7 @@ sync_after_editing() {
 }
 
 edit_notes() {
-    micro -autosave "$AUTOSAVE_INTERVAL_SECONDS" -softwrap true -saveundo true -colorscheme "$COLORSCHEME" -truecolor on "$1"
+    micro -autosave "$AUTOSAVE_INTERVAL_SECONDS" -clipboard terminal -softwrap true -saveundo true -colorscheme "$COLORSCHEME" -truecolor on "$1"
 }
 
 main() {

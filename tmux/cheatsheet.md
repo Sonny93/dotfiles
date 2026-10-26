@@ -60,7 +60,7 @@ Depuis l'extérieur : `t` rattache la dernière session, `t .` rouvre celle du p
 
 | Touche | Effet |
 |---|---|
-| `n` | Notes du projet (popup micro, `Ctrl+S` sauver, `Ctrl+Q` fermer, fichier `~/notes/<projet>.md`, sauvegardé et versionné automatiquement) |
+| `n` | Notes du projet (popup micro, `Ctrl+S` sauver, `Ctrl+Q` fermer, `Ctrl+C` copier la sélection, fichier `~/notes/<projet>.md`, sauvegardé et versionné automatiquement) |
 
 ## Défilement et copie
 
