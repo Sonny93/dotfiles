@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Attaches to or creates a tmux session (the `t` command in zsh).
 # Usage: session.sh [<path>|<name>|--complete]
-#   no argument: attaches to the latest session, or opens the session picker when already inside tmux
+#   no argument: attaches to the latest session, or opens the session picker when already inside tmux; with no session at all, runs the session picker in the terminal
 #   <path> (contains `/`, or is `.` or `..`): opens the session of the git root of that directory, created with workspace.sh when missing
 #   <name>: opens the session of that name, or creates the one of the project of that name when it has none
 #   --complete: prints the open sessions and the known projects, one per line, for the shell completion
@@ -66,8 +66,10 @@ open_without_argument() {
         tmux display-popup -EE -w "$POPUP_SIZE" -h "$POPUP_SIZE" "$(printf '%q %q' "$PICKER_SCRIPT" "$current_session")"
         return
     fi
-    tmux has-session 2>/dev/null || fail "no tmux session to attach to, try \`t .\` to open one for this directory"
-    exec tmux attach-session
+    if tmux has-session 2>/dev/null; then
+        exec tmux attach-session
+    fi
+    exec "$PICKER_SCRIPT"
 }
 
 resolve_directory() {
