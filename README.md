@@ -164,7 +164,15 @@ Le XPS est à la fois machine de dev et client.
    bash ~/dotfiles/tabby/install.sh
    ```
 
-5. Vérifier : `ssh-add -L` affiche la clé Bitwarden, et Tabby ouvre la connexion choisie au lancement.
+5. Sous KDE Plasma Wayland, le raccourci global de Tabby (`Ctrl+Shift+Space`, afficher / masquer) passe par le portail de raccourcis globaux, qu'Electron n'utilise qu'avec un flag. Ajouter ce flag au lanceur de Tabby :
+
+   ```sh
+   sed 's|^Exec=/opt/Tabby/tabby|& --enable-features=GlobalShortcutsPortal|' /usr/share/applications/tabby.desktop > ~/.local/share/applications/tabby.desktop
+   ```
+
+   Relancer Tabby depuis le lanceur, puis dans **Paramètres système → Clavier → Raccourcis → org.chromium.Chromium**, assigner `Ctrl+Shift+Space` à « Electron shortcut Ctrl+Shift+Space » (une seule fois, KDE le garde). Le `hacks.globalHotkey: false` de `tabby/config.yaml` force Tabby à déclarer ce raccourci, qu'il ignore sinon sous Plasma Wayland avant la 6.6.
+
+6. Vérifier : `ssh-add -L` affiche la clé Bitwarden, Tabby ouvre la connexion choisie au lancement, et `Ctrl+Shift+Space` affiche / masque Tabby.
 
 ### Mettre à jour
 

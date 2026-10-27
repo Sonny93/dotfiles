@@ -82,3 +82,8 @@ pluginBlacklist:
   - telnet
   - serial
 recoverTabs: false
+# Tabby never registers the toggle-window hotkey on KDE Plasma Wayland older than 6.6;
+# false forces it (elsewhere Tabby registers it anyway). On the XPS, Tabby must also
+# start with the GlobalShortcutsPortal flag (README, XPS section).
+hacks:
+  globalHotkey: false
