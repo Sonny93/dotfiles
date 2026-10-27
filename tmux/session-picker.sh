@@ -3,6 +3,7 @@
 # Usage: session-picker.sh [<current-session>]
 #   <current-session> defaults to the session of the client tmux sees as current (display-popup does not expand formats)
 #   meant to run inside a tmux popup (prefix + s); Esc or an empty selection closes it without doing anything
+#   also runs directly in a terminal outside tmux (used by `t` when no session exists): it lists the projects only and attaches to the chosen session instead of switching to it
 # Lists the open sessions as a tree (the current one is marked, each followed by its tabs labelled like the tab bar), then the projects that have no session yet.
 # The cursor starts on the current tab; a tab row ends with its dimmed session name so filtering by session name finds it.
 set -euo pipefail
@@ -50,7 +51,7 @@ list_sessions() {
         [[ "$session_name" == "$current_session" ]] && label="$session_name  $CURRENT_SESSION_LABEL"
         print_entry "$SESSION_KIND" "$session_name" "" "$label"
         list_windows "$session_name"
-    done < <(tmux list-sessions -F '#{session_name}' | sort)
+    done < <(tmux list-sessions -F '#{session_name}' 2>/dev/null | sort)
 }
 
 list_new_projects() {
@@ -85,9 +86,13 @@ preview_entry() {
 
 pick_entry() {
     local current_session="$1" entries
+    local -a position_options=()
     entries=$(list_entries "$current_session")
+    if [[ -n "$current_session" ]]; then
+        position_options=(--bind "load:pos($(find_current_window_position "$current_session" <<<"$entries"))")
+    fi
     fzf --prompt "$PROMPT" --reverse --ansi --tiebreak=index --delimiter "$FIELD_SEPARATOR" --with-nth "$LABEL_FIELD" \
-        --bind "load:pos($(find_current_window_position "$current_session" <<<"$entries"))" \
+        "${position_options[@]}" \
         --preview "$(printf '%q' "$0") --preview {$KIND_FIELD} {$TARGET_FIELD} {$WINDOW_INDEX_FIELD}" <<<"$entries" || return 0
 }
 
@@ -95,11 +100,24 @@ extract_field() {
     cut -d "$FIELD_SEPARATOR" -f "$2" <<<"$1"
 }
 
-switch_to_project() {
+enter_target() {
+    if [[ -n "${TMUX:-}" ]]; then
+        tmux switch-client -t "$1"
+        return
+    fi
+    exec tmux attach-session -t "$1"
+}
+
+open_project() {
     local directory="$1" session_name
     session_name=$(session_name_for "$directory")
     "$WORKSPACE_SCRIPT" "$directory" "$session_name" >/dev/null
-    tmux switch-client -t "=$session_name"
+    enter_target "=$session_name"
+}
+
+find_current_session() {
+    [[ -n "${TMUX:-}" ]] || return 0
+    tmux display-message -p '#{client_session}'
 }
 
 open_selection() {
@@ -109,9 +127,9 @@ open_selection() {
     window_index=$(extract_field "$selection" "$WINDOW_INDEX_FIELD")
 
     case "$kind" in
-        "$SESSION_KIND") tmux switch-client -t "=$target" ;;
-        "$WINDOW_KIND") tmux switch-client -t "=$target:$window_index" ;;
-        *) switch_to_project "$target" ;;
+        "$SESSION_KIND") enter_target "=$target" ;;
+        "$WINDOW_KIND") enter_target "=$target:$window_index" ;;
+        *) open_project "$target" ;;
     esac
 }
 
@@ -124,7 +142,7 @@ main() {
     command -v fzf >/dev/null || { echo "fzf not found on PATH" >&2; exit 1; }
 
     local selection
-    selection=$(pick_entry "${1:-$(tmux display-message -p '#{client_session}')}")
+    selection=$(pick_entry "${1:-$(find_current_session)}")
     [[ -n "$selection" ]] || return 0
     open_selection "$selection"
 }

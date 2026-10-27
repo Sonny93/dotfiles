@@ -8,7 +8,7 @@
 
 **Palette de commandes** : préfixe puis `Ctrl+K` liste toutes les actions avec leur raccourci. On tape pour filtrer, `Entrée` lance, `Échap` ferme.
 
-`t` : rattache la dernière session (dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant, avec la disposition Claude + shells. `t <nom>` : session ou projet de ce nom (`Tab` complète).
+`t` : rattache la dernière session (aucune session : ouvre le sélecteur des projets ; dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant, avec la disposition Claude + shells. `t <nom>` : session ou projet de ce nom (`Tab` complète).
 
 **Claude + shells** (menu Nouvel onglet, `Alt+n`) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.
 
@@ -53,7 +53,7 @@
 
 Fermer le dernier onglet d'une session bascule sur la session utilisée juste avant, au lieu de quitter tmux.
 
-Depuis l'extérieur : `t` rattache la dernière session, `t .` rouvre celle du projet, `tmux ls` les liste.
+Depuis l'extérieur : `t` rattache la dernière session (ou ouvre le sélecteur des projets), `t .` rouvre celle du projet, `tmux ls` les liste.
 
 ## Notes
 
