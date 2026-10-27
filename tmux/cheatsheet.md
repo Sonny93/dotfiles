@@ -66,8 +66,7 @@ Depuis l'extérieur : `t` rattache la dernière session (ou ouvre le sélecteur 
 | Action | Effet |
 |---|---|
 | molette | Remonter dans l'historique |
-| glisser | Copier au relâchement, dans un seul pane (la sélection reste, `q` ou `Échap` pour sortir) |
-| `Shift` + glisser | Sélectionner avec Tabby, puis `Ctrl+Shift+C` |
+| glisser, double-clic (mot), triple-clic (ligne) | Sélectionner dans un seul pane, sans copier ; `Ctrl+C` ou `Entrée` copie, un clic ou `Échap` annule |
 | `[` | Mode copie (`q` pour sortir) |
 
 ## Aide
