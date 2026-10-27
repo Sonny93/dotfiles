@@ -296,7 +296,7 @@ Après `update`, les instances Claude Code déjà ouvertes gardent l'ancien bina
 
 Les raccourcis vivent dans `tmux/cheatsheet.md` ; `Ctrl+A` puis `h` l'ouvre dans tmux.
 
-`tmux ls` liste les sessions. La souris est activée : pour sélectionner du texte avec Tabby, maintenir Shift pendant le glisser.
+`tmux ls` liste les sessions. La souris est activée : glisser sélectionne du texte dans un seul pane sans le copier, `Ctrl+C` ou `Entrée` le copie dans le presse-papiers du poste, un clic ou `Échap` annule.
 
 ## Claude Code
 
