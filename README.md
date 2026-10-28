@@ -306,6 +306,7 @@ Les raccourcis vivent dans `tmux/cheatsheet.md` ; `Ctrl+A` puis `h` l'ouvre dans
 - **Fusionné** : `claude/settings.json` est une base fusionnée (jq) dans `~/.claude/settings.json`, jamais liée : Claude Code réécrit ce fichier lui-même. Les clés du repo l'emportent, les clés propres à la machine (`model`, `theme`…) restent.
 - **rtk** : `rtk` (installé par `just mise`) compresse la sortie des commandes avant qu'elle n'atteigne Claude. Les réglages de base déclarent son hook `PreToolUse` (`rtk hook claude`) et `CLAUDE.md` importe `RTK.md` : aucun `rtk init` à lancer. Ne pas relancer `rtk init -g` (il modifierait `settings.json` et écrirait à travers le lien `RTK.md`) ; si une nouvelle version de rtk change `RTK.md`, le régénérer ailleurs et le copier dans `claude/RTK.md`.
 - `claude/statusline.sh` est référencé directement par les réglages de base : rien à installer.
+- **Garde `CLAUDE.md`** : `claude/hooks/require-claude-md-skill.sh`, référencé par les réglages de base (hook `PreToolUse` sur `Edit|Write`), refuse toute modification d'un `CLAUDE.md`, `CLAUDE.local.md`, `AGENTS.md` ou `.claude/rules/*.md` tant que le skill `claude-md` n'a pas été chargé dans la session.
 
 Avant de remplacer quoi que ce soit, `just claude` déplace l'existant dans `~/.claude/backups/dotfiles-<date>/` (même chemin relatif) et affiche chaque sauvegarde. Rien n'est supprimé, sauf les liens vers le repo devenus orphelins (skill ou agent retiré du repo).
 
