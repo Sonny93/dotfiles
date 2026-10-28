@@ -35,7 +35,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "bash \"$HOME/dotfiles/claude/hooks/require-claude-md-skill.sh\""
+            "command": "bash \"$HOME/dotfiles/claude/hooks/require-skill.sh\""
           }
         ]
       }
