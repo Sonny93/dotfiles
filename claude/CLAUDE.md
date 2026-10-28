@@ -1,12 +1,6 @@
-# Developer Identity
-
-You are a senior developer. Always talk like caveman.
-
----
-
 # Model Workflow
 
-The main session (Opus) thinks; the `implementer` subagent (Sonnet) writes the code. This is a standing instruction to delegate. No need to ask before spawning it.
+The main session (Opus) thinks; the `implementer` subagent (Sonnet) writes the code. This is a standing instruction to delegate: no need to ask before spawning it.
 
 - **Main session does**: exploring the codebase, analysis, planning, design decisions, answering questions, reviewing diffs, running final verification.
 - **`implementer` does**: every code change. Brief it with a self-contained prompt: files, expected behavior, patterns to follow, locked decisions, verification commands.
@@ -14,107 +8,33 @@ The main session (Opus) thinks; the `implementer` subagent (Sonnet) writes the c
 - **Split big work** into independent briefs. Run them in parallel only when they touch disjoint files.
 - **Only exception**: trivial edits of a few lines (typo, config value, one-line fix found during review) may be done inline.
 
----
-
 # Applying These Rules
 
-These rules and the convention skills (`typescript-conventions`, `adonis-conventions`, `react-conventions`) are defaults, not a contract. Apply them as far as the project allows:
+These rules and the convention skills (`typescript-conventions`, `adonis-conventions`, `react-conventions`) are defaults. When the project's `CLAUDE.md`, code patterns, framework or tooling require something else, follow the project; never add a rewrite or abstraction just to satisfy a rule. When you deviate, say which rule and why in one line.
 
-- When the project's own conventions, its `CLAUDE.md`, its existing code patterns, its framework or its tooling require something different, follow the project and stay consistent with it
-- Never force a 1:1 match: no rewrite, workaround or extra abstraction just to satisfy a convention the change does not need
-- When you deviate from a rule, say which one and why in one line
+# Code
 
----
+- Early returns and guard clauses over nested conditionals.
+- One responsibility and one level of abstraction per function, about 20 lines max. Two functions over a boolean parameter. Return values instead of mutating parameters.
+- Full names without abbreviations (`getUserById`, not `getUsrById`), never `data`, `result`, `tmp`, `flag`, `obj`, `val`. Booleans `is`/`has`/`can`, functions verb + noun, collections plural, `SCREAMING_SNAKE_CASE` for true constants.
+- Named constants instead of magic numbers. `const` and `readonly`, no mutation.
+- No inline comments: rewrite code that needs one. Keep existing JSDoc. Delete dead code.
+- Errors: handle, rethrow, or convert to a typed domain error. Validate input at system boundaries (HTTP, DB, filesystem, CLI args). Fail fast, close to the origin.
+- Depend on abstractions; keep business logic free of framework and infrastructure code. Duplicate twice before abstracting.
 
-# Core Principles
+# Tests
 
-Apply these by default, without being asked:
-- DRY — eliminate duplication relentlessly
-- Clean Code — code is read more than written
-- SOLID — especially Single Responsibility and Dependency Inversion
-- Fail fast — surface errors early, loudly, and close to their origin
+- Tests ship with the code. Test behavior through the public surface, never private methods.
+- One behavior per test: one arrange + act, as many assertions as its outcome needs. Tests that share the same arrange and act are one test.
+- Names say what should happen and when: `should return 404 when user does not exist`.
+- Unit tests by default, integration tests only at boundaries (DB, HTTP, filesystem). Test files sit next to their source.
 
----
+# Git
 
-# Code Style
-
-- Use early returns and guard clauses over nested conditionals
-- Keep functions small and focused on a single level of abstraction
-- Use meaningful, unabbreviated names — never `data`, `result`, `tmp`, `flag`, `obj`, `val`
-- No magic numbers — use named constants
-- Prefer immutability: `const`, `readonly`, avoid mutation
-- Prefer explicit over implicit — no clever tricks that require context to decode
-- Avoid inline comments — if code needs explanation, rewrite it
-- JSDoc is acceptable and must be preserved when present — never remove it
-- Delete dead code, never comment it out
-- No abbreviations in names — `getUserById` not `getUsrById`
-
----
-
-# Functions & Abstractions
-
-- One function = one responsibility = one level of abstraction
-- Max ~20 lines per function — if it grows, extract
-- Boolean parameters are a smell — prefer two separate functions
-- Avoid output arguments — functions should return values, not mutate parameters
-- Prefer pure functions — same input, same output, no side effects
-
----
-
-# Error Handling
-
-- Never swallow exceptions silently
-- Either handle, rethrow, or convert to a typed domain error
-- Validate inputs at system boundaries (HTTP, DB, filesystem, CLI args)
-- Use typed errors over generic `Error` objects when the language allows
-- Never use `any` as a catch-all type
-
----
-
-# Testing
-
-- Write tests alongside code, not after — tests are not optional
-- Test behavior, not implementation — never test private methods directly
-- One behavior per test: one scenario (arrange + act), with as many assertions as its outcome needs. Tests that share the same arrange and act are one test
-- Test names describe what should happen and under what condition: `should return 404 when user does not exist`
-- Prefer unit tests — use integration tests only at boundaries (DB, HTTP, filesystem)
-- Co-locate test files with source files
-- A test that always passes is worse than no test
-
----
-
-# Architecture & Design
-
-- Depend on abstractions, not concretions — interfaces over implementations
-- Keep business logic free of framework and infrastructure concerns
-- Prefer small, composable functions over large classes
-- Separate what changes from what stays the same
-- Modules should have high cohesion and low coupling
-- Avoid premature abstraction — duplicate twice before abstracting
-
----
-
-# Naming Conventions
-
-- Booleans: `isActive`, `hasPermission`, `canEdit` — never `active`, `permission`, `flag`
-- Functions: verb + noun — `fetchUser`, `validateEmail`, `parseConfig`
-- Collections: always plural — `users`, `errors`, `items`
-- Constants: `SCREAMING_SNAKE_CASE` for true constants, `camelCase` for computed values
-- Avoid context repetition: in a `User` class, write `getEmail()` not `getUserEmail()`
-
----
-
-# Git & Communication
-
-- Commit messages: imperative mood, present tense — `Add feature` not `Added feature`
-- Each commit = one logical change
-- Never commit broken code or commented-out code
-- PR descriptions explain the *why*, not the *what* (the diff shows the what)
-
----
+- Commit subjects in imperative mood. PR descriptions explain the why; the diff shows the what.
 
 # Tooling
 
-- Always use Context7 when I need library or API documentation, code generation, setup or configuration steps — without me having to explicitly ask
+- Use Context7 for library or API documentation, code generation, setup or configuration steps, without being asked.
 
 @RTK.md
