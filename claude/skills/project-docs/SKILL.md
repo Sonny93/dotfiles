@@ -41,7 +41,7 @@ Stays out:
 
 - Ideas → `~/notes/<project>.md` (`note-idea` skill).
 - Multi-phase plans → `~/.claude/plans/` (`plan-phase` skill).
-- Tickets and roadmaps → Notion or kan.bn. An open-source project gets a public Notion tracker, linked from the README.
+- Tickets and roadmaps → Notion, kan.bn or GitHub Issues. The README links only a tracker the public can open; with none, it points to GitHub Issues.
 - Architecture decisions → ADRs in `docs/adr/` (`domain-modeling` skill).
 - A TODO, PLAN, AUDIT or NOTES file found in a repo: list what is live, done or stale, propose where the live items go, and delete the file only once the user agrees. Git history is the archive; no `docs/archive/`.
 
@@ -69,7 +69,7 @@ Past about 100 lines, sections move to `docs/`, one link deep from the README. A
 
 ## Language
 
-- English for every doc. A doc written in another language is migrated to English when touched by an audit.
+- English for every doc, unless the product's whole audience speaks one other language (a French-only site): then that language only, with no English copy. Any other doc in another language is migrated to English when touched by an audit.
 - Another language only when the product itself supports it, or when the user asks for a translation. Translations live in `docs/<lang>/`, with the same tree and file names as the English pages. The README translation is `docs/<lang>/README.md` (or `docs/<lang>/index.md` on a docs site), linked from the top of the English README.
 - A translation changes in the same commit as its English source. When a change can't be translated faithfully, report the page as behind instead of leaving it silently stale.
 
