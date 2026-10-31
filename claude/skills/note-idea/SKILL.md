@@ -49,7 +49,7 @@ Pick the size first:
 
 Every line carries information the user needs to pick the idea up again cold: the what, the why, the non-obvious lead. Context they can find in the code stays out.
 
-Before adding, read the file: when the idea is already there, update that entry instead of writing a second one.
+Before adding, read the file: when the idea is already there, show that entry and ask the user before changing it, instead of writing a second one. Never edit, reorder or delete another entry.
 
 ## 4. Commit and push
 
