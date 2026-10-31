@@ -1,7 +1,7 @@
 ---
 name: audit
 description: >
-  Run a full security, accessibility and performance audit of a repo,
+  Run a full security, accessibility, performance and documentation audit of a repo,
   branch or path with independent reviewer subagents, and write the
   findings as a phased plan file. Use when the user says "/audit",
   "audite le repo", "audit de la branche X".
@@ -29,6 +29,7 @@ to decide how much to report.
 - `security-reviewer`: always.
 - `a11y-reviewer`: if there is UI.
 - `perf-reviewer`: if there is a database, jobs, I/O or a frontend bundle.
+- Docs: if the scope holds a README, `docs/`, a `CLAUDE.md` or an `AGENTS.md`. A `general-purpose` agent briefed to load the `project-docs` and `claude-md` skills and run their "Full audit" in report-only mode: no edits, no deletions, every proposed change goes into its findings (doc that no longer matches the code, dead commands and paths, `CLAUDE.md` lines to cut or move), in the same output format.
 
 Launch them in parallel in a single message. Each brief is
 self-contained: scope (files or diff range), stakes, what to skip
