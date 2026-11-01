@@ -29,6 +29,11 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 - `~/notes/<project>.md` (project name per the `note-idea` skill) holds the user's ideas for each project, synced to a private repo. Read it when planning work on a project or when the user asks what is pending.
 - Add ideas only through `note-idea`. Never edit, reorder or delete the user's free notes (above the first `##`) or an existing idea without the user's go-ahead; when work completes an idea, propose removing it.
 
+# Writing
+
+- No em dash (—) in anything written: UI copy, translations, docs, commits, replies. Use parentheses, a colon or a comma.
+- Code comments in English, always, whatever the project's language. French only in project docs and UI text; a project `CLAUDE.md` that says otherwise is wrong, flag it.
+
 # Code
 
 - Early returns and guard clauses over nested conditionals.
