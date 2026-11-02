@@ -287,6 +287,16 @@ doctor-server:
         fi
     done
 
+# Run the tmux script tests (isolated tmux server, needs tmux)
+test:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    failed=0
+    for test_file in {{dotfiles}}/tmux/*.test.sh; do
+        "$test_file" || failed=1
+    done
+    exit "$failed"
+
 # Check the full dev machine setup
 doctor-dev: doctor-server
     #!/usr/bin/env bash
