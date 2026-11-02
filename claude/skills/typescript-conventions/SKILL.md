@@ -56,6 +56,10 @@ export function createUser(input: CreateUserInput) {}
 - Promotion rule: code starts in the most specific folder and moves to a `shared/` folder only on its second use — never pre-emptively
 - Subdivide a domain folder once it exceeds ~8 files
 - No barrel `index.ts` files — import from the source file directly (a stack skill may name generated exceptions)
+- Absolute imports only, through Node subpath imports in `package.json`: `"imports": { "#*": "./src/*" }`, plus one entry per folder outside `src/` (`"#scripts/*": "./scripts/*"`); the longest prefix wins. Never a relative path
+- The specifier names the real file, extension included: `'#shared/cn.ts'`, `'#parc/parc_app.tsx'` (tsconfig `allowImportingTsExtensions`). Native in Node, Vite, Vitest and tsc: no tsconfig `paths`, no bundler alias. Node, Vite and tsc never add an extension to an `imports` target, so a single mapping can't cover mixed `.ts`/`.tsx` without it
+- Enforce with oxlint `no-restricted-imports` (patterns `./*`, `../*`); tsc already rejects a missing extension. `new URL('./worker.ts', import.meta.url)` stays relative: it is a URL, not a specifier
+- A stack skill may name the framework's own import scheme
 - Max ~150 lines per file — extract when it grows beyond that (a stack skill may override)
 
 ---
