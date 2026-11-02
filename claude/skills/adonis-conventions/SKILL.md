@@ -152,6 +152,7 @@ async render({ serialize, params }: HttpContext) {
 
 - Group by domain: `app/users/` holds controller + service + validators + transformer + policy
 - `#generated/controllers` is the only barrel allowed (Adonis v7 convention)
+- Imports follow the framework's scheme instead of the typescript-conventions one: backend through the `package.json` subpath imports Adonis declares (`"#controllers/*": "./app/controllers/*.js"`, one entry per domain folder, specifiers without extension), Inertia frontend through the starter's `~/` alias. Never a relative path
 
 ```
 app/
