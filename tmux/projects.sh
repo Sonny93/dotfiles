@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
-# Known projects and the session name rule, shared by session-picker.sh and session.sh.
+# Known projects, the session name rule and the new project name rule, shared by session-picker.sh and session.sh.
 # Usage: source projects.sh
 #   a project is a directory under PROJECTS_ROOT or one of EXTRA_PROJECT_DIRECTORIES; its session is named after the directory
+#   a new project name is a single folder name: letters, digits, `_`, `.` and `-`, not starting with `.` or `-`
 
 readonly PROJECTS_ROOT="$HOME/dev"
 readonly EXTRA_PROJECT_DIRECTORIES=("$HOME/dotfiles")
@@ -27,4 +28,8 @@ find_project_directory() {
         return 0
     done < <(list_project_directories)
     return 1
+}
+
+is_valid_project_name() {
+    [[ "$1" =~ ^[A-Za-z0-9_][A-Za-z0-9._-]*$ ]]
 }

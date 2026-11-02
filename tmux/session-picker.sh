@@ -1,9 +1,11 @@
 #!/usr/bin/env bash
-# Picks a session, one of its tabs or a project with fzf and switches the tmux client to it, creating the session with workspace.sh when missing.
+# Picks a session, one of its tabs or a project with fzf and switches the tmux client to it, creating the session with workspace.sh when missing (the layout is asked first).
 # Usage: session-picker.sh [<current-session>]
 #   <current-session> defaults to the session of the client tmux sees as current (display-popup does not expand formats)
 #   meant to run inside a tmux popup (prefix + s); Esc or an empty selection closes it without doing anything
 #   also runs directly in a terminal outside tmux (used by `t` when no session exists): it lists the projects only and attaches to the chosen session instead of switching to it
+# Enter with a query that matches nothing, or Alt+Enter whatever the matches, creates the project ~/dev/<query> (see is_valid_project_name): the layout is asked first, Esc there creates nothing, no git init.
+# The header shows the typed text in the Alt+Enter hint as the query changes.
 # Lists the open sessions as a tree (the current one is marked, each followed by its tabs labelled like the tab bar), then the projects that have no session yet.
 # The cursor starts on the current tab; a tab row ends with its dimmed session name so filtering by session name finds it.
 set -euo pipefail
@@ -28,9 +30,14 @@ readonly LABEL_FIELD=4
 readonly SESSION_PREVIEW_FORMAT=' #I  #{pane_title}'
 readonly WINDOW_LIST_FORMAT="#{window_index}${FIELD_SEPARATOR}#{E:window-status-format}"
 readonly ACTIVE_WINDOW_FORMAT='#{window_index}'
+readonly CREATE_KEY="alt-enter"
+readonly HEADER_FORMAT='Entrée : ouvrir · Alt+Entrée : créer ~/dev/%s · Échap : fermer'
+readonly FZF_NO_MATCH_STATUS=1
 
 # shellcheck source-path=SCRIPTDIR source=projects.sh
 source "$SCRIPT_DIRECTORY/projects.sh"
+# shellcheck source-path=SCRIPTDIR source=layouts.sh
+source "$SCRIPT_DIRECTORY/layouts.sh"
 
 print_entry() {
     printf '%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4"
@@ -92,8 +99,11 @@ pick_entry() {
         position_options=(--bind "load:pos($(find_current_window_position "$current_session" <<<"$entries"))")
     fi
     fzf --prompt "$PROMPT" --reverse --ansi --tiebreak=index --delimiter "$FIELD_SEPARATOR" --with-nth "$LABEL_FIELD" \
+        --print-query --expect "$CREATE_KEY" \
+        --header "${HEADER_FORMAT/\%s/}" \
+        --bind "change:transform-header(printf '$HEADER_FORMAT' {q})" \
         "${position_options[@]}" \
-        --preview "$(printf '%q' "$0") --preview {$KIND_FIELD} {$TARGET_FIELD} {$WINDOW_INDEX_FIELD}" <<<"$entries" || return 0
+        --preview "$(printf '%q' "$0") --preview {$KIND_FIELD} {$TARGET_FIELD} {$WINDOW_INDEX_FIELD}" <<<"$entries"
 }
 
 extract_field() {
@@ -108,11 +118,37 @@ enter_target() {
     exec tmux attach-session -t "$1"
 }
 
-open_project() {
-    local directory="$1" session_name
-    session_name=$(session_name_for "$directory")
-    "$WORKSPACE_SCRIPT" "$directory" "$session_name" >/dev/null
+launch_session() {
+    local layout="$1" directory="$2" session_name="$3"
+    "$WORKSPACE_SCRIPT" "$layout" "$directory" "$session_name" >/dev/null
     enter_target "=$session_name"
+}
+
+open_project() {
+    local directory="$1" session_name layout
+    session_name=$(session_name_for "$directory")
+    if tmux has-session -t "=$session_name" 2>/dev/null; then
+        enter_target "=$session_name"
+        return
+    fi
+    layout=$(choose_layout "Nouvelle session $session_name") || return 0
+    launch_session "$layout" "$directory" "$session_name"
+}
+
+create_project() {
+    local name="$1" directory layout
+    is_valid_project_name "$name" || {
+        echo "Nom de projet invalide : « $name » (lettres, chiffres, _ . - ; sans / ni . ou - au début)" >&2
+        return 1
+    }
+    directory="$PROJECTS_ROOT/$name"
+    if [[ -d "$directory" ]]; then
+        open_project "$directory"
+        return
+    fi
+    layout=$(choose_layout "Nouveau projet ~/dev/$name") || return 0
+    mkdir -- "$directory"
+    launch_session "$layout" "$directory" "$(session_name_for "$directory")"
 }
 
 find_current_session() {
@@ -133,6 +169,18 @@ open_selection() {
     esac
 }
 
+handle_pick() {
+    local -a lines
+    mapfile -t lines <<<"$1"
+    local query="${lines[0]:-}" key="${lines[1]:-}" selection="${lines[2]:-}"
+    if [[ -n "$selection" && "$key" != "$CREATE_KEY" ]]; then
+        open_selection "$selection"
+        return
+    fi
+    [[ -n "$query" || "$key" == "$CREATE_KEY" ]] || return 0
+    create_project "$query"
+}
+
 main() {
     if [[ "${1:-}" == "--preview" ]]; then
         preview_entry "$2" "$3" "$4"
@@ -141,10 +189,10 @@ main() {
 
     command -v fzf >/dev/null || { echo "fzf not found on PATH" >&2; exit 1; }
 
-    local selection
-    selection=$(pick_entry "${1:-$(find_current_session)}")
-    [[ -n "$selection" ]] || return 0
-    open_selection "$selection"
+    local output status=0
+    output=$(pick_entry "${1:-$(find_current_session)}") || status=$?
+    [[ "$status" -eq 0 || "$status" -eq "$FZF_NO_MATCH_STATUS" ]] || return 0
+    handle_pick "$output"
 }
 
 main "$@"

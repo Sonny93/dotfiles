@@ -3,7 +3,9 @@
 # Usage: session.sh [<path>|<name>|--complete]
 #   no argument: attaches to the latest session, or opens the session picker when already inside tmux; with no session at all, runs the session picker in the terminal
 #   <path> (contains `/`, or is `.` or `..`): opens the session of the git root of that directory, created with workspace.sh when missing
-#   <name>: opens the session of that name, or creates the one of the project of that name when it has none
+#   <name>: opens the session of that name, or creates the one of the project of that name when it has none;
+#     with neither, creates the project ~/dev/<name> (see is_valid_project_name, no git init)
+#   a session about to be created first asks for its layout (layouts.sh); Esc creates nothing
 #   --complete: prints the open sessions and the known projects, one per line, for the shell completion
 set -euo pipefail
 
@@ -16,6 +18,8 @@ readonly COMPLETE_FLAG="--complete"
 
 # shellcheck source-path=SCRIPTDIR source=projects.sh
 source "$SCRIPT_DIRECTORY/projects.sh"
+# shellcheck source-path=SCRIPTDIR source=layouts.sh
+source "$SCRIPT_DIRECTORY/layouts.sh"
 
 fail() {
     echo "t: $1" >&2
@@ -55,8 +59,15 @@ enter_session() {
 }
 
 create_session() {
-    local directory="$1" session_name="$2"
-    "$WORKSPACE_SCRIPT" "$directory" "$session_name" >/dev/null
+    local layout="$1" directory="$2" session_name="$3"
+    "$WORKSPACE_SCRIPT" "$layout" "$directory" "$session_name" >/dev/null
+}
+
+create_and_enter_session() {
+    local directory="$1" session_name="$2" title="$3" layout
+    layout=$(choose_layout "$title") || return 0
+    create_session "$layout" "$directory" "$session_name"
+    enter_session "$session_name"
 }
 
 open_without_argument() {
@@ -83,8 +94,21 @@ open_path() {
     local directory session_name
     directory=$(resolve_directory "$1")
     session_name=$(session_name_for "$directory")
-    has_session "$session_name" || create_session "$directory" "$session_name"
-    enter_session "$session_name"
+    if has_session "$session_name"; then
+        enter_session "$session_name"
+        return
+    fi
+    create_and_enter_session "$directory" "$session_name" "Nouvelle session $session_name"
+}
+
+create_project() {
+    local name="$1" directory layout
+    is_valid_project_name "$name" || fail "invalid project name: $name (letters, digits, _ . - ; no / and no leading . or -)"
+    directory="$PROJECTS_ROOT/$name"
+    layout=$(choose_layout "Nouveau projet ~/dev/$name") || return 0
+    mkdir -- "$directory" || fail "cannot create $directory"
+    create_session "$layout" "$directory" "$(session_name_for "$name")"
+    enter_session "$(session_name_for "$name")"
 }
 
 open_name() {
@@ -94,9 +118,11 @@ open_name() {
         enter_session "$session_name"
         return
     fi
-    directory=$(find_project_directory "$session_name") || fail "no session or project named $session_name"
-    create_session "$directory" "$session_name"
-    enter_session "$session_name"
+    if directory=$(find_project_directory "$session_name"); then
+        create_and_enter_session "$directory" "$session_name" "Nouvelle session $session_name"
+        return
+    fi
+    create_project "$1"
 }
 
 main() {
