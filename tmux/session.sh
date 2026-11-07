@@ -1,12 +1,15 @@
 #!/usr/bin/env bash
 # Attaches to or creates a tmux session (the `t` command in zsh).
-# Usage: session.sh [<path>|<name>|--complete]
+# Usage: session.sh [<path>|<name>|--complete|--refresh-github-cache]
 #   no argument: attaches to the latest session, or opens the session picker when already inside tmux; with no session at all, runs the session picker in the terminal
 #   <path> (contains `/`, or is `.` or `..`): opens the session of the git root of that directory, created with workspace.sh when missing
 #   <name>: opens the session of that name, or creates the one of the project of that name when it has none;
-#     with neither, creates the project ~/dev/<name> (see is_valid_project_name, no git init)
-#   a session about to be created first asks for its layout (layouts.sh); Esc creates nothing
-#   --complete: prints the open sessions and the known projects, one per line, for the shell completion
+#     with neither, clones the GitHub repository of that name into ~/dev/<name> when the cache lists it (only with `gh`, name matched case-insensitively, see projects.sh),
+#     else creates the empty project ~/dev/<name> (see is_valid_project_name, no git init)
+#   a session about to be created first asks for its layout (layouts.sh); Esc creates nothing, and a clone only starts after the layout is chosen
+#   --complete: prints the open sessions, the known projects and the names of the GitHub repositories not cloned yet, one per line, for the shell completion;
+#     it also renews the GitHub cache in the background when it is stale
+#   --refresh-github-cache: renews the GitHub cache synchronously (what the background refresh runs, setsid cannot run a function)
 set -euo pipefail
 
 SCRIPT_DIRECTORY="$(dirname "${BASH_SOURCE[0]}")"
@@ -45,8 +48,16 @@ list_project_session_names() {
     done < <(list_project_directories)
 }
 
+list_uncloned_github_names() {
+    local full_name
+    while IFS= read -r full_name; do
+        printf '%s\n' "${full_name#*/}"
+    done < <(list_uncloned_github_repositories)
+}
+
 list_candidates() {
-    { list_session_names; list_project_session_names; } | sort -u
+    refresh_github_cache_in_background
+    { list_session_names; list_project_session_names; list_uncloned_github_names; } | sort -u
 }
 
 enter_session() {
@@ -101,9 +112,21 @@ open_path() {
     create_and_enter_session "$directory" "$session_name" "Nouvelle session $session_name"
 }
 
+create_cloned_project() {
+    local full_name="$1" name="${1#*/}" layout
+    layout=$(choose_layout "Cloner $full_name dans ~/dev/$name") || return 0
+    clone_github_repository "$full_name" || exit 1
+    create_session "$layout" "$PROJECTS_ROOT/$name" "$(session_name_for "$name")"
+    enter_session "$(session_name_for "$name")"
+}
+
 create_project() {
-    local name="$1" directory layout
+    local name="$1" directory layout full_name
     is_valid_project_name "$name" || fail "invalid project name: $name (letters, digits, _ . - ; no / and no leading . or -)"
+    if full_name=$(find_github_repository "$name"); then
+        create_cloned_project "$full_name"
+        return
+    fi
     directory="$PROJECTS_ROOT/$name"
     layout=$(choose_layout "Nouveau projet ~/dev/$name") || return 0
     mkdir -- "$directory" || fail "cannot create $directory"
@@ -129,6 +152,7 @@ main() {
     case "${1:-}" in
         "") open_without_argument ;;
         "$COMPLETE_FLAG") list_candidates ;;
+        "$GITHUB_REFRESH_FLAG") refresh_github_cache ;;
         *) if is_path_argument "$1"; then open_path "$1"; else open_name "$1"; fi ;;
     esac
 }

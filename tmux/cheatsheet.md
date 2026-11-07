@@ -8,7 +8,7 @@
 
 **Palette de commandes** : préfixe puis `Ctrl+K` liste toutes les actions avec leur raccourci. On tape pour filtrer, `Entrée` lance, `Échap` ferme.
 
-`t` : rattache la dernière session (aucune session : ouvre le sélecteur des projets ; dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant. `t <nom>` : session ou projet de ce nom (`Tab` complète), ou nouveau projet `~/dev/<nom>` s'il n'existe pas. Une nouvelle session demande d'abord sa disposition : `Entrée` (Claude + shells), `w`, `c` ou `s`, `Échap` annule.
+`t` : rattache la dernière session (aucune session : ouvre le sélecteur des projets ; dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant. `t <nom>` : session ou projet de ce nom (`Tab` complète), ou, s'il n'existe pas, dépôt GitHub à cloner dans `~/dev/<nom>` quand `gh` le connaît (cache rafraîchi en arrière-plan, le premier usage peut attendre quelques secondes ; dépôts archivés et forks masqués, organisations incluses, `~/notes` et `~/dotfiles` jamais proposés ; sans `gh`, aucun dépôt GitHub), sinon nouveau projet `~/dev/<nom>`. Une nouvelle session demande d'abord sa disposition : `Entrée` (Claude + shells), `w`, `c` ou `s`, `Échap` annule.
 
 **Claude + shells** (menu Nouvel onglet, `Alt+n`) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.
 
@@ -47,7 +47,7 @@
 
 | Touche | Effet |
 |---|---|
-| `s` | Sessions, leurs onglets et projets sans session (popup, on tape pour filtrer ; `Alt+Entrée` crée le projet `~/dev/<saisie>` ; une nouvelle session demande sa disposition) |
+| `s` | Sessions, leurs onglets, projets sans session et dépôts GitHub à cloner (popup, on tape pour filtrer ; `Alt+Entrée` crée le projet `~/dev/<saisie>` ; une nouvelle session demande sa disposition) |
 | `$` | Renommer (sans `.` ni `:`, sinon `t <nom>` et `s` ne la trouvent plus) |
 | `d` | Se détacher : tout continue de tourner |
 
