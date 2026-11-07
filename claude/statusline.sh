@@ -3,8 +3,8 @@
 # Claude Code status line, wired through "statusLine" in claude/settings.json.
 # Line one mirrors the Starship prompt (machine badge, directory, git branch and
 # status, user@host, time), then the session name and the caveman mode badge.
-# Line two shows the model, prompt cache, edited lines, duration, and the context
-# (against the auto-compact window), 5h and 7d usages.
+# Line two shows the model, prompt cache, edited lines, duration, the transcript
+# size on disk, and the context (against the auto-compact window), 5h and 7d usages.
 
 shopt -s extglob
 
@@ -258,6 +258,11 @@ EMPTY_SETTINGS_FILE="/dev/null"
 CLAUDE_PROCESS_NAME="claude"
 AUTOCOMPACT_FLAG="--autocompact"
 MAX_PROCESS_ANCESTORS=8
+BYTES_PER_KIBIBYTE=1024
+BYTES_PER_MEBIBYTE=1048576
+TRANSCRIPT_WARNING_BYTES=$((3 * BYTES_PER_MEBIBYTE))
+TRANSCRIPT_DANGER_BYTES=$((6 * BYTES_PER_MEBIBYTE))
+DECIMAL_BASE=10
 
 # shellcheck disable=SC2016
 SESSION_FIELDS_FILTER='
@@ -292,6 +297,7 @@ SESSION_FIELDS_FILTER='
   {
     workspace_current_dir: (.workspace.current_dir // .cwd),
     session_name: .session_name,
+    transcript_path: .transcript_path,
     model_display_name: .model.display_name,
     effort_level: .effort.level,
     fast_mode: .fast_mode,
@@ -441,6 +447,37 @@ render_duration() {
   fi
 }
 
+transcript_size_color() {
+  local size="$1"
+  if [ "$size" -ge "$TRANSCRIPT_DANGER_BYTES" ]; then
+    printf '%s' "$RED_BOLD"
+  elif [ "$size" -ge "$TRANSCRIPT_WARNING_BYTES" ]; then
+    printf '%s' "$YELLOW_BOLD"
+  else
+    printf '%s' "$GRAY"
+  fi
+}
+
+format_transcript_size() {
+  local size="$1" tenths
+  if [ "$size" -lt "$BYTES_PER_MEBIBYTE" ]; then
+    printf '%skB' "$((size / BYTES_PER_KIBIBYTE))"
+    return 0
+  fi
+  tenths=$((size * DECIMAL_BASE / BYTES_PER_MEBIBYTE))
+  printf '%s.%sMB' "$((tenths / DECIMAL_BASE))" "$((tenths % DECIMAL_BASE))"
+}
+
+render_transcript_size() {
+  local size
+  [ -z "$transcript_path" ] && return 0
+  [ -L "$transcript_path" ] && return 0
+  [ -f "$transcript_path" ] && [ -r "$transcript_path" ] || return 0
+  size=$(stat -c %s -- "$transcript_path" 2>/dev/null) || return 0
+  [[ "$size" =~ ^[0-9]+$ ]] || return 0
+  printf '%s' "$(transcript_size_color "$size")≡ $(format_transcript_size "$size")${RESET}"
+}
+
 render_line_one_segments() {
   emit_segment "$(render_location)"
   emit_segment "$(render_identity)"
@@ -453,6 +490,7 @@ render_line_two_segments() {
   emit_segment "$(render_prompt_cache)"
   emit_segment "$(render_lines)"
   emit_segment "$(render_duration)"
+  emit_segment "$(render_transcript_size)"
   emit_segment "$(render_usages)"
 }
 
