@@ -240,9 +240,36 @@ MINUTES_PER_HOUR=60
 PERCENT_MULTIPLIER=100
 SEPARATOR_WIDTH=3
 UTF8_LOCALE="C.UTF-8"
+EMPTY_SETTINGS_FILE="/dev/null"
 
 SESSION_FIELDS_FILTER='
   def whole: if type == "number" then floor else . end;
+  def numeric_or_null: if type == "number" then . else null end;
+  def settings_object: try ($settings_text | fromjson | objects) catch {};
+  def model_id_without_suffix: sub("\\[[^\\]]*\\]$"; "");
+  def model_auto_compact_window($model_id):
+    try (settings_object | .modelSettings[$model_id].autoCompactWindow | numeric_or_null) catch null;
+  def configured_window:
+    (.model.id // "") as $model_id
+    | first(
+        ($environment_window | if test("^[0-9]+$") then tonumber else null end),
+        model_auto_compact_window($model_id),
+        model_auto_compact_window($model_id | model_id_without_suffix),
+        (try (settings_object | .autoCompactWindow | numeric_or_null) catch null),
+        null
+        | select(. != null)
+      ) // null;
+  def effective_window:
+    .context_window.context_window_size as $full
+    | (configured_window // $full) as $window
+    | if ($window | type) == "number" and ($full | type) == "number" and $window > $full then $full else $window end;
+  def effective_percentage($window):
+    .context_window as $context
+    | if $context.used_percentage == null or ($context.total_input_tokens | type) != "number" or ($window | type) != "number" or $window <= 0
+      then ($context.used_percentage | whole)
+      else ($context.total_input_tokens * $percent_multiplier / $window | floor | [., 0] | max | [., $percent_multiplier] | min)
+      end;
+  effective_window as $window |
   {
     workspace_current_dir: (.workspace.current_dir // .cwd),
     session_name: .session_name,
@@ -255,9 +282,9 @@ SESSION_FIELDS_FILTER='
     cost_total_lines_added: (.cost.total_lines_added | whole),
     cost_total_lines_removed: (.cost.total_lines_removed | whole),
     cost_total_minutes: (.cost.total_duration_ms | if type == "number" then . / $milliseconds_per_minute | floor else . end),
-    context_window_used_percentage: (.context_window.used_percentage | whole),
+    context_window_used_percentage: effective_percentage($window),
     context_window_total_input_tokens: .context_window.total_input_tokens,
-    context_window_context_window_size: .context_window.context_window_size,
+    context_window_context_window_size: $window,
     rate_limits_five_hour_used_percentage: (.rate_limits.five_hour.used_percentage | whole),
     rate_limits_five_hour_resets_at: .rate_limits.five_hour.resets_at,
     rate_limits_seven_day_used_percentage: (.rate_limits.seven_day.used_percentage | whole),
@@ -266,8 +293,11 @@ SESSION_FIELDS_FILTER='
 '
 
 load_session_fields() {
-  local assignments
+  local assignments settings_file="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
+  [ -r "$settings_file" ] || settings_file="$EMPTY_SETTINGS_FILE"
   assignments=$(jq -r \
+    --rawfile settings_text "$settings_file" \
+    --arg environment_window "${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}" \
     --argjson percent_multiplier "$PERCENT_MULTIPLIER" \
     --argjson milliseconds_per_minute "$MILLISECONDS_PER_MINUTE" \
     "$SESSION_FIELDS_FILTER" <<< "$INPUT" 2>/dev/null)
