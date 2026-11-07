@@ -1,6 +1,7 @@
 home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 shell_tools := 'starship fzf just fastfetch'
+hook_tools := 'gitleaks shellcheck'
 build_packages := 'build-essential libncurses-dev bison'
 
 [private]
@@ -336,6 +337,13 @@ doctor-dev: doctor-server
     else
         warn "git hooks not wired, run 'just git'"
     fi
+    for tool in {{hook_tools}}; do
+        if mise which "$tool" >/dev/null 2>&1; then
+            ok "$tool installed via mise"
+        else
+            warn "$tool missing, run 'just mise'"
+        fi
+    done
     missing_build_packages=0
     for package in {{build_packages}}; do
         [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" = "install ok installed" ] || missing_build_packages=1
