@@ -3,7 +3,8 @@ dotfiles := home + '/dotfiles'
 shell_tools := 'starship fzf just fastfetch'
 hook_tools := 'gitleaks shellcheck'
 code_tools := 'delta diffnav bat rg'
-build_packages := 'build-essential libncurses-dev bison'
+debian_build_packages := 'build-essential libncurses-dev bison'
+arch_build_packages := 'base-devel ncurses bison'
 
 [private]
 default: help
@@ -50,7 +51,11 @@ system:
 build-deps:
     #!/usr/bin/env bash
     set -e
-    sudo apt install -y {{build_packages}}
+    family="$({{dotfiles}}/scripts/distro-family.sh)"
+    case "$family" in
+        debian) sudo apt install -y {{debian_build_packages}} ;;
+        arch) sudo pacman -S --needed --noconfirm {{arch_build_packages}} ;;
+    esac
     echo "Build dependencies installed."
 
 # Set up zsh, Starship and the mise tools the shell needs
@@ -372,11 +377,23 @@ doctor-dev: doctor-server
             warn "$tool missing, run 'just mise'"
         fi
     done
+    family="$({{dotfiles}}/scripts/distro-family.sh 2>/dev/null)" || family=""
     missing_build_packages=0
-    for package in {{build_packages}}; do
-        [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" = "install ok installed" ] || missing_build_packages=1
-    done
-    if [ "$missing_build_packages" = 0 ]; then
+    case "$family" in
+        debian)
+            for package in {{debian_build_packages}}; do
+                [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" = "install ok installed" ] || missing_build_packages=1
+            done
+            ;;
+        arch)
+            for package in {{arch_build_packages}}; do
+                pacman -Q "$package" >/dev/null 2>&1 || missing_build_packages=1
+            done
+            ;;
+    esac
+    if [ -z "$family" ]; then
+        warn "unsupported distribution (only Debian and Arch families), build packages not checked"
+    elif [ "$missing_build_packages" = 0 ]; then
         ok "build packages installed"
     else
         warn "build packages missing, run 'just build-deps'"
