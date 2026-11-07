@@ -155,7 +155,7 @@ notes:
     create_remote
     echo "Notes repo created."
 
-# Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills) and merge the base settings
+# Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills, rtk config) and merge the base settings
 claude:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -206,6 +206,11 @@ claude:
         done
     }
 
+    link_rtk_config() {
+        mkdir -p "{{home}}/.config/rtk"
+        link_into "{{dotfiles}}/rtk/config.toml" "{{home}}/.config/rtk/config.toml"
+    }
+
     prune_dangling_links() {
         local directory="$1" link
         for link in "$directory"/*; do
@@ -252,6 +257,7 @@ claude:
     jq empty "$base_settings"
     mkdir -p "$claude_home/agents" "$claude_home/skills"
     link_repo_entries
+    link_rtk_config
     prune_dangling_links "$claude_home/agents"
     prune_dangling_links "$claude_home/skills"
     merge_settings
@@ -373,6 +379,7 @@ doctor-dev: doctor-server
         skill="${skill%/}"
         check_link "$claude_home/skills/$(basename "$skill")" "$skill" claude
     done
+    check_link "{{home}}/.config/rtk/config.toml" "{{dotfiles}}/rtk/config.toml" claude
     for link in "$claude_home"/agents/* "$claude_home"/skills/*; do
         [ -L "$link" ] && [ ! -e "$link" ] || continue
         case "$(readlink "$link")" in
