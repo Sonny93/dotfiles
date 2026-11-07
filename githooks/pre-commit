@@ -3,5 +3,20 @@ set -euo pipefail
 if command -v gitleaks >/dev/null 2>&1; then
   gitleaks protect --staged --redact --verbose
 else
-  echo "gitleaks not found (run 'just tools'), skipping secret scan." >&2
+  echo "gitleaks not found (run 'just mise'), skipping secret scan." >&2
+fi
+
+staged_shell_files=()
+while IFS= read -r -d '' staged_file; do
+  case "$staged_file" in
+    *.sh | githooks/*) staged_shell_files+=("$staged_file") ;;
+  esac
+done < <(git diff --cached --name-only --diff-filter=ACMR -z)
+
+if [ "${#staged_shell_files[@]}" -gt 0 ]; then
+  if command -v shellcheck >/dev/null 2>&1; then
+    shellcheck --severity=warning "${staged_shell_files[@]}"
+  else
+    echo "shellcheck not found (run 'just mise'), skipping shell lint." >&2
+  fi
 fi

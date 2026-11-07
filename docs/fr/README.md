@@ -120,7 +120,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `apt`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks et shellcheck), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -246,7 +246,7 @@ exec zsh
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
 | `just tmux` | Lier la config tmux (`~/.config/tmux/tmux.conf`) et le thème micro Cobalt2 (`~/.config/micro/colorschemes/cobalt2.micro`) | ✓ | |
-| `just git` | Config git du repo + hook gitleaks | ✓ | |
+| `just git` | Config git du repo + hook gitleaks et shellcheck | ✓ | |
 | `just notes` | Mettre `~/notes` en dépôt git relié au dépôt GitHub privé `notes` (créé sur la première machine, cloné ailleurs) | ✓ | |
 | `just gh-auth` | Connexion GitHub via `gh`, utilisée par git en HTTPS | ✓ | |
 | `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills) et fusionner les réglages de base | ✓ | |
@@ -327,7 +327,7 @@ Le repo est public et ne contient **jamais** de secret, d'identité ni d'infos s
 - **Connexions** : dans Bitwarden et `~/.ssh/config` de Windows 11 et du XPS, jamais dans le repo.
 - **Identité git** : définie dans chaque repo. `.gitconfig` inclut aussi `~/.gitconfig.local`, optionnel et propre à chaque machine, pour une identité par défaut.
 - **GitHub** : jeton `gh` sur les machines de dev uniquement (le XPS compris). Il va dans le trousseau système s'il y en a un, sinon en clair dans `~/.config/gh/hosts.yml`. Aucune clé SSH pour GitHub : `.gitconfig` réécrit les remotes `git@github.com:` en HTTPS, donc les repos clonés en SSH passent aussi par `gh`, sans changer leur remote.
-- **gitleaks** tourne en pre-commit (`githooks/pre-commit`, activé par `just git`) et bloque tout secret qui tenterait d'entrer.
+- **gitleaks** tourne en pre-commit (`githooks/pre-commit`, activé par `just git`) et bloque tout secret qui tenterait d'entrer. Le même hook analyse les scripts shell indexés avec shellcheck.
 
 ## MOTD
 
