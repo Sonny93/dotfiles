@@ -1,3 +1,4 @@
+# shellcheck shell=bash
 # Status helpers (ok, warn, info, check_link) for doctor recipes; meant to be sourced.
 readonly COLOR_GREEN=$'\033[32m'
 readonly COLOR_YELLOW=$'\033[33m'

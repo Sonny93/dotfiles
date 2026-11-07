@@ -7,7 +7,8 @@
 # So the command goes into the server option @palette_command, and the binding in tmux.conf runs it once the popup is closed.
 set -euo pipefail
 
-readonly ACTIONS_FILE="$(dirname "${BASH_SOURCE[0]}")/palette.tsv"
+ACTIONS_FILE="$(dirname "${BASH_SOURCE[0]}")/palette.tsv"
+readonly ACTIONS_FILE
 readonly FIELD_SEPARATOR=$'\t'
 readonly COMMAND_FIELD=3
 readonly PROMPT="action > "
