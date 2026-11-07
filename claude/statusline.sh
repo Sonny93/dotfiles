@@ -1,4 +1,5 @@
 #!/bin/bash
+# shellcheck disable=SC2154
 # caveman — statusline badge script for Claude Code
 # Reads the caveman mode flag file and outputs a colored badge.
 #
@@ -245,6 +246,7 @@ CLAUDE_PROCESS_NAME="claude"
 AUTOCOMPACT_FLAG="--autocompact"
 MAX_PROCESS_ANCESTORS=8
 
+# shellcheck disable=SC2016
 SESSION_FIELDS_FILTER='
   def whole: if type == "number" then floor else . end;
   def numeric_or_null: if type == "number" then . else null end;

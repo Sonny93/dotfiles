@@ -87,7 +87,7 @@ preloaded_skills_of() {
         next
       }
       { in_list = 0 }
-    ' | tr -s ' \t' '\n\n' | sed '/^$/d'
+    ' | tr -s ' \t' '\n' | sed '/^$/d'
 }
 
 preloaded_skills() {
