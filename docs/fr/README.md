@@ -252,7 +252,7 @@ exec zsh
 | `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills, config rtk) et fusionner les réglages de base | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
 | `just doctor-dev` | Vérifier toute la machine de dev (lance aussi `doctor-server`), y compris les outils du menu Code et delta, dont git a besoin comme pager | ✓ | |
-| `just test` | Lancer les tests des scripts tmux (`tmux/*.test.sh`) sur un serveur tmux isolé, les tests de la barre d'état Claude (`claude/*.test.sh`) et les tests des hooks Claude (`claude/hooks/*.test.sh`) | ✓ | |
+| `just test` | Lancer les tests des scripts tmux (`tmux/*.test.sh`) sur un serveur tmux isolé, les tests de la barre d'état Claude (`claude/*.test.sh`), les tests des hooks Claude (`claude/hooks/*.test.sh`) et les tests des scripts partagés (`scripts/*.test.sh`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
 
 ## Shell
