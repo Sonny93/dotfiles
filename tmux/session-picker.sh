@@ -4,9 +4,12 @@
 #   <current-session> defaults to the session of the client tmux sees as current (display-popup does not expand formats)
 #   meant to run inside a tmux popup (prefix + s); Esc or an empty selection closes it without doing anything
 #   also runs directly in a terminal outside tmux (used by `t` when no session exists): it lists the projects only and attaches to the chosen session instead of switching to it
-# Enter with a query that matches nothing, or Alt+Enter whatever the matches, creates the project ~/dev/<query> (see is_valid_project_name): the layout is asked first, Esc there creates nothing, no git init.
+# Enter with a query that matches nothing, or Alt+Enter whatever the matches, creates the project ~/dev/<query> (see is_valid_project_name): the layout is asked first, Esc there creates nothing, no git init;
+#   when the query is the name of a cached GitHub repository, it is cloned instead.
 # The header shows the typed text in the Alt+Enter hint as the query changes.
-# Lists the open sessions as a tree (the current one is marked, each followed by its tabs labelled like the tab bar), then the projects that have no session yet.
+# Lists the open sessions as a tree (the current one is marked, each followed by its tabs labelled like the tab bar), then the projects that have no session yet,
+#   then the GitHub repositories not cloned yet (only with `gh`, from the cache of projects.sh, renewed in the background at start, with a one-line notice on stderr when the very first fetch has to wait): choosing one asks the layout first, then clones it into ~/dev/<name>, then opens its session.
+#   Repositories that already have a session or a folder (~/dev, ~/dotfiles, ~/notes) are not listed; a failed clone prints an error and creates no session.
 # The cursor starts on the current tab; a tab row ends with its dimmed session name so filtering by session name finds it.
 set -euo pipefail
 
@@ -17,6 +20,9 @@ readonly FIELD_SEPARATOR=$'\t'
 readonly SESSION_KIND="session"
 readonly WINDOW_KIND="window"
 readonly PROJECT_KIND="project"
+readonly GITHUB_KIND="github"
+readonly FIRST_REFRESH_NOTICE="Récupération de la liste des dépôts GitHub..."
+readonly GITHUB_LABEL="(GitHub, à cloner)"
 readonly CURRENT_SESSION_LABEL="(courante)"
 readonly NEW_SESSION_LABEL="(nouvelle session)"
 readonly WINDOW_INDENT="   "
@@ -70,9 +76,17 @@ list_new_projects() {
     done < <(list_project_directories) | sort
 }
 
+list_github_repositories() {
+    local full_name
+    while IFS= read -r full_name; do
+        print_entry "$GITHUB_KIND" "$full_name" "" "$full_name  $GITHUB_LABEL"
+    done < <(list_uncloned_github_repositories | sort -f)
+}
+
 list_entries() {
     list_sessions "$1"
     list_new_projects
+    list_github_repositories
 }
 
 find_current_window_position() {
@@ -135,8 +149,15 @@ open_project() {
     launch_session "$layout" "$directory" "$session_name"
 }
 
+open_github_repository() {
+    local full_name="$1" name="${1#*/}" layout
+    layout=$(choose_layout "Cloner $full_name dans ~/dev/$name") || return 0
+    clone_github_repository "$full_name" || return 1
+    launch_session "$layout" "$PROJECTS_ROOT/$name" "$(session_name_for "$name")"
+}
+
 create_project() {
-    local name="$1" directory layout
+    local name="$1" directory layout full_name
     is_valid_project_name "$name" || {
         echo "Nom de projet invalide : « $name » (lettres, chiffres, _ . - ; sans / ni . ou - au début)" >&2
         return 1
@@ -144,6 +165,10 @@ create_project() {
     directory="$PROJECTS_ROOT/$name"
     if [[ -d "$directory" ]]; then
         open_project "$directory"
+        return
+    fi
+    if full_name=$(find_github_repository "$name"); then
+        open_github_repository "$full_name"
         return
     fi
     layout=$(choose_layout "Nouveau projet ~/dev/$name") || return 0
@@ -165,6 +190,7 @@ open_selection() {
     case "$kind" in
         "$SESSION_KIND") enter_target "=$target" ;;
         "$WINDOW_KIND") enter_target "=$target:$window_index" ;;
+        "$GITHUB_KIND") open_github_repository "$target" ;;
         *) open_project "$target" ;;
     esac
 }
@@ -188,6 +214,10 @@ main() {
     fi
 
     command -v fzf >/dev/null || { echo "fzf not found on PATH" >&2; exit 1; }
+    if is_github_cache_missing; then
+        echo "$FIRST_REFRESH_NOTICE" >&2
+    fi
+    refresh_github_cache_in_background
 
     local output status=0
     output=$(pick_entry "${1:-$(find_current_session)}") || status=$?

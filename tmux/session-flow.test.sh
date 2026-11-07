@@ -5,7 +5,10 @@
 # Isolation: every test gets its own sandbox (mktemp -d) holding a fake HOME (so ~/dev, ~/.claude/projects and ~/dotfiles are fake)
 #   and its own tmux socket (TMUX_TMPDIR), and the sandbox and its tmux server are removed afterwards; the real tmux server and ~/dev are never touched.
 # Stubs first on PATH: `claude` logs its directory and arguments to claude.log, `zsh` sleeps to keep panes alive,
-#   `fzf` replays the scripted answers <n>.out / <n>.status of the sandbox, one per call, and logs each call to fzf.calls.
+#   `fzf` replays the scripted answers <n>.out / <n>.status of the sandbox, one per call, logs each call to fzf.calls and saves its stdin to <n>.in.
+# `gh` is absent from PATH by default (the "no gh" behavior of servers); the GitHub tests install a `gh` stub that serves the files owner / organization
+#   of $SANDBOX/gh for `gh api`, fails with api.status when present, and logs every call to gh.log; `gh repo clone` creates the directory unless clone.status holds a non-zero status.
+# GitHub tests write a fresh cache directly, so no detached refresh is ever spawned.
 
 set -uo pipefail
 
@@ -56,11 +59,12 @@ STUB
     printf '#!/bin/sh\nexec sleep 600\n' >"$stub_directory/zsh"
     cat >"$stub_directory/fzf" <<'STUB'
 #!/bin/sh
-cat >/dev/null
+cat >"$SANDBOX/fzf/stdin"
 counter_file="$SANDBOX/fzf/counter"
 count=$(cat "$counter_file" 2>/dev/null || echo 0)
 count=$((count + 1))
 echo "$count" >"$counter_file"
+mv "$SANDBOX/fzf/stdin" "$SANDBOX/fzf/$count.in"
 echo "$count $*" >>"$SANDBOX/fzf.calls"
 [ -f "$SANDBOX/fzf/$count.out" ] && cat "$SANDBOX/fzf/$count.out"
 status=0
@@ -70,16 +74,28 @@ STUB
     chmod +x "$stub_directory"/*
 }
 
+remove_gh_from_path() {
+    local directory
+    local -a directories kept_directories=()
+    IFS=: read -ra directories <<<"$PATH"
+    for directory in "${directories[@]}"; do
+        [[ -x "$directory/gh" ]] && continue
+        kept_directories+=("$directory")
+    done
+    PATH=$(IFS=:; echo "${kept_directories[*]}")
+}
+
 enter_sandbox() {
     SANDBOX=$(mktemp -d)
     export SANDBOX
     export HOME="$SANDBOX/home"
     export TMUX_TMPDIR="$SANDBOX/tmux"
     export SHELL=/bin/sh
-    unset TMUX TMUX_PANE XDG_CONFIG_HOME
+    unset TMUX TMUX_PANE XDG_CONFIG_HOME XDG_CACHE_HOME
     mkdir -p "$HOME/dev" "$HOME/.claude/projects" "$TMUX_TMPDIR"
     [[ "$TMUX_TMPDIR" == "$SANDBOX"/* ]] || { echo "refusing to run: tmux socket outside the sandbox" >&2; exit 1; }
     write_stubs
+    remove_gh_from_path
     export PATH="$SANDBOX/stubs:$PATH"
 }
 
@@ -99,6 +115,46 @@ fzf_answer() {
 fzf_call_count() {
     [[ -f "$SANDBOX/fzf.calls" ]] || { echo 0; return; }
     wc -l <"$SANDBOX/fzf.calls" | tr -d ' '
+}
+
+install_gh_stub() {
+    mkdir -p "$SANDBOX/gh"
+    cat >"$SANDBOX/stubs/gh" <<'STUB'
+#!/bin/sh
+echo "$*" >>"$SANDBOX/gh.log"
+if [ "$1" = "api" ]; then
+    [ -f "$SANDBOX/gh/api.status" ] && exit "$(cat "$SANDBOX/gh/api.status")"
+    case "$*" in
+        *affiliation=owner*) cat "$SANDBOX/gh/owner" 2>/dev/null ;;
+        *affiliation=organization_member*) cat "$SANDBOX/gh/organization" 2>/dev/null ;;
+    esac
+    exit 0
+fi
+if [ "$1 $2" = "repo clone" ]; then
+    [ -f "$SANDBOX/gh/clone.status" ] && exit "$(cat "$SANDBOX/gh/clone.status")"
+    mkdir -p "$4"
+    exit 0
+fi
+exit 1
+STUB
+    chmod +x "$SANDBOX/stubs/gh"
+}
+
+github_cache_file() {
+    echo "$HOME/.cache/dotfiles/github-repositories"
+}
+
+write_github_cache() {
+    mkdir -p "$(dirname "$(github_cache_file)")"
+    printf '%s\n' "$@" >"$(github_cache_file)"
+}
+
+picker_github_rows() {
+    grep '^github' "$SANDBOX/fzf/1.in" || true
+}
+
+github_entry_line() {
+    printf 'github%s%s%s%s%s\n' "$TAB" "$1" "$TAB" "$TAB" "$1  (GitHub, à cloner)"
 }
 
 claude_entry_line() {
@@ -302,6 +358,155 @@ should_reject_invalid_name_typed_in_the_picker() {
     assert_contains "$LAST_STDERR" "invalide"
     assert_no_file "$HOME/dev/.bad"
     assert_equals 1 "$(fzf_call_count)" fzf_calls
+}
+
+# GitHub repositories
+
+should_list_uncloned_repositories_in_the_picker_and_hide_the_ones_with_a_local_counterpart() {
+    install_gh_stub
+    mkdir -p "$HOME/dev/cloned" "$HOME/notes" "$HOME/dotfiles" "$HOME/elsewhere"
+    run_script workspace.sh shell "$HOME/elsewhere" opened
+    write_github_cache me/fresh org/Team me/cloned me/notes me/dotfiles me/opened
+    fzf_answer 1 "" 130
+    run_script session-picker.sh
+    assert_equals "$(github_entry_line me/fresh)"$'\n'"$(github_entry_line org/Team)" "$(picker_github_rows)" github_rows
+}
+
+should_ignore_invalid_lines_of_the_cache() {
+    install_gh_stub
+    write_github_cache x/.hidden x/-rf "bad line" 'bad owner/name' me/ok
+    fzf_answer 1 "" 130
+    run_script session-picker.sh
+    assert_equals "$(github_entry_line me/ok)" "$(picker_github_rows)" github_rows
+}
+
+should_not_list_github_repositories_when_gh_is_absent() {
+    write_github_cache me/fresh
+    fzf_answer 1 "" 130
+    run_script session-picker.sh
+    assert_equals "" "$(picker_github_rows)" github_rows
+}
+
+should_clone_then_open_the_session_when_a_github_row_is_chosen() {
+    install_gh_stub
+    write_github_cache me/fresh
+    fzf_answer 1 "$(printf '\n\n%s\n' "$(github_entry_line me/fresh)")"
+    fzf_answer 2 $'s\n'
+    run_script session-picker.sh
+    assert_file_exists "$HOME/dev/fresh"
+    assert_no_file "$HOME/dev/.fresh.clone"
+    has_session fresh || record_failure "session fresh missing"
+    assert_contains "$(cat "$SANDBOX/gh.log")" "repo clone me/fresh $HOME/dev/.fresh.clone"
+}
+
+should_clone_nothing_when_the_layout_question_of_a_github_row_is_cancelled() {
+    install_gh_stub
+    write_github_cache me/fresh
+    fzf_answer 1 "$(printf '\n\n%s\n' "$(github_entry_line me/fresh)")"
+    fzf_answer 2 "" 130
+    run_script session-picker.sh
+    assert_no_file "$SANDBOX/gh.log"
+    assert_no_file "$HOME/dev/fresh"
+    has_session fresh && record_failure "session created"
+}
+
+should_clone_a_cached_repository_when_its_name_is_typed_in_the_picker() {
+    install_gh_stub
+    write_github_cache me/fresh
+    fzf_answer 1 $'fresh\nalt-enter\n'
+    fzf_answer 2 $'s\n'
+    run_script session-picker.sh
+    assert_file_exists "$HOME/dev/fresh"
+    assert_contains "$(cat "$SANDBOX/gh.log")" "repo clone me/fresh"
+}
+
+should_clone_a_cached_repository_when_its_name_is_given_to_t_in_another_case() {
+    install_gh_stub
+    write_github_cache me/Fresh
+    fzf_answer 1 $'s\n'
+    run_script session.sh fresh
+    assert_file_exists "$HOME/dev/Fresh"
+    assert_no_file "$HOME/dev/.Fresh.clone"
+    has_session Fresh || record_failure "session Fresh missing"
+    assert_contains "$(cat "$SANDBOX/gh.log")" "repo clone me/Fresh $HOME/dev/.Fresh.clone"
+}
+
+should_create_an_empty_folder_without_calling_gh_when_the_name_is_not_cached() {
+    install_gh_stub
+    write_github_cache me/other
+    fzf_answer 1 $'s\n'
+    run_script session.sh newproj
+    assert_file_exists "$HOME/dev/newproj"
+    assert_no_file "$SANDBOX/gh.log"
+}
+
+should_create_an_empty_folder_when_gh_is_absent_even_if_the_name_is_cached() {
+    write_github_cache me/fresh
+    fzf_answer 1 $'s\n'
+    run_script session.sh fresh
+    assert_file_exists "$HOME/dev/fresh"
+    has_session fresh || record_failure "session fresh missing"
+}
+
+should_fail_without_folder_or_session_when_the_clone_fails() {
+    install_gh_stub
+    write_github_cache me/fresh
+    echo 1 >"$SANDBOX/gh/clone.status"
+    fzf_answer 1 $'s\n'
+    run_script session.sh fresh
+    [[ "$LAST_STATUS" -ne 0 ]] || record_failure "exit status 0"
+    assert_contains "$LAST_STDERR" "Échec du clone de me/fresh"
+    assert_no_file "$HOME/dev/fresh"
+    assert_no_file "$HOME/dev/.fresh.clone"
+    has_session fresh && record_failure "session created"
+}
+
+should_refuse_to_clone_over_an_existing_staging_folder() {
+    install_gh_stub
+    write_github_cache me/fresh
+    mkdir -p "$HOME/dev/.fresh.clone"
+    fzf_answer 1 $'s\n'
+    run_script session.sh fresh
+    [[ "$LAST_STATUS" -ne 0 ]] || record_failure "exit status 0"
+    assert_contains "$LAST_STDERR" "supprimez"
+    assert_no_file "$SANDBOX/gh.log"
+}
+
+should_not_clone_a_repository_that_has_a_local_counterpart_outside_dev() {
+    install_gh_stub
+    mkdir -p "$HOME/notes"
+    write_github_cache me/notes
+    fzf_answer 1 $'s\n'
+    run_script session.sh notes
+    assert_no_file "$SANDBOX/gh.log"
+    assert_no_file "$HOME/dev/.notes.clone"
+}
+
+should_complete_the_names_of_uncloned_repositories() {
+    install_gh_stub
+    mkdir -p "$HOME/dev/cloned"
+    write_github_cache me/fresh me/cloned
+    run_script session.sh --complete
+    assert_equals $'cloned\nfresh' "$(cat "$SANDBOX/stdout")" completions
+}
+
+should_refresh_the_cache_with_the_personal_repository_first_when_names_collide() {
+    install_gh_stub
+    printf 'me/Shared\nme/solo\n' >"$SANDBOX/gh/owner"
+    printf 'org/shared\norg/team\n' >"$SANDBOX/gh/organization"
+    run_script session.sh --refresh-github-cache
+    assert_equals 0 "$LAST_STATUS" status
+    assert_equals $'me/Shared\nme/solo\norg/team' "$(cat "$(github_cache_file)")" cache
+    assert_equals 600 "$(stat -c %a "$(github_cache_file)")" mode
+}
+
+should_keep_the_old_cache_without_leftovers_when_gh_fails_during_a_refresh() {
+    install_gh_stub
+    write_github_cache me/old
+    echo 1 >"$SANDBOX/gh/api.status"
+    run_script session.sh --refresh-github-cache
+    assert_equals me/old "$(cat "$(github_cache_file)")" cache
+    assert_equals 1 "$(find "$(dirname "$(github_cache_file)")" -type f | wc -l | tr -d ' ')" files
 }
 
 # Runner
