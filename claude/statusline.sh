@@ -3,8 +3,8 @@
 # Claude Code status line, wired through "statusLine" in claude/settings.json.
 # Line one mirrors the Starship prompt (machine badge, directory, git branch and
 # status, user@host, time), then the session name and the caveman mode badge.
-# Line two shows the model, prompt cache, edited lines, duration, the transcript
-# size on disk, and the context (against the auto-compact window), 5h and 7d usages.
+# Line two shows the model, duration, the transcript size on disk, and the context
+# (against the auto-compact window), 5h and 7d usages.
 
 shopt -s extglob
 
@@ -18,8 +18,6 @@ PURPLE_BOLD=$'\033[1;35m'
 RED_BOLD=$'\033[1;31m'
 YELLOW_BOLD=$'\033[1;33m'
 GREEN_BOLD=$'\033[1;32m'
-GREEN=$'\033[32m'
-RED=$'\033[31m'
 BOLD=$'\033[1m'
 
 GIT_ABBREVIATED_HASH_LENGTH=7
@@ -301,11 +299,6 @@ SESSION_FIELDS_FILTER='
     model_display_name: .model.display_name,
     effort_level: .effort.level,
     fast_mode: .fast_mode,
-    prompt_cache_hit_percentage: (.prompt_cache.hit_ratio | if type == "number" then . * $percent_multiplier | floor else . end),
-    prompt_cache_warm: .prompt_cache.warm,
-    prompt_cache_misses: (.prompt_cache.misses | whole),
-    cost_total_lines_added: (.cost.total_lines_added | whole),
-    cost_total_lines_removed: (.cost.total_lines_removed | whole),
     cost_total_minutes: (.cost.total_duration_ms | if type == "number" then . / $milliseconds_per_minute | floor else . end),
     context_window_used_percentage: effective_percentage($window),
     context_window_is_measured: (.context_window.current_usage != null),
@@ -423,21 +416,6 @@ render_model() {
   return 0
 }
 
-render_prompt_cache() {
-  local misses="${prompt_cache_misses:-0}" color="$GRAY"
-  [ -z "$prompt_cache_hit_percentage" ] && return 0
-  [ "$prompt_cache_warm" = "true" ] && color="$GREEN_BOLD"
-  printf '%s' "${color}♻ ${prompt_cache_hit_percentage}%${RESET}"
-  [ "$misses" -gt 0 ] && printf ' %s' "${RED_BOLD}✗${misses}${RESET}"
-  return 0
-}
-
-render_lines() {
-  local added="${cost_total_lines_added:-0}" removed="${cost_total_lines_removed:-0}"
-  [ "$added" -eq 0 ] && [ "$removed" -eq 0 ] && return 0
-  printf '%s %s' "${GREEN}+${added}${RESET}" "${RED}-${removed}${RESET}"
-}
-
 render_duration() {
   [ -z "$cost_total_minutes" ] && return 0
   if [ "$cost_total_minutes" -ge "$MINUTES_PER_HOUR" ]; then
@@ -487,8 +465,6 @@ render_line_one_segments() {
 
 render_line_two_segments() {
   emit_segment "$(render_model)"
-  emit_segment "$(render_prompt_cache)"
-  emit_segment "$(render_lines)"
   emit_segment "$(render_duration)"
   emit_segment "$(render_transcript_size)"
   emit_segment "$(render_usages)"
