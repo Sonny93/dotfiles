@@ -62,7 +62,12 @@ shell:
     #!/usr/bin/env bash
     set -e
     if ! command -v zsh >/dev/null 2>&1; then
-        echo "ERROR: zsh is not installed. Run 'sudo apt install zsh' first."
+        family="$({{dotfiles}}/scripts/distro-family.sh)"
+        case "$family" in
+            debian) install_command="sudo apt install zsh" ;;
+            arch) install_command="sudo pacman -S zsh" ;;
+        esac
+        echo "ERROR: zsh is not installed. Run '$install_command' first."
         exit 1
     fi
     mkdir -p {{home}}/.config/mise
@@ -289,7 +294,12 @@ doctor-server:
     if command -v zsh >/dev/null 2>&1; then
         ok "zsh installed"
     else
-        warn "zsh missing, run 'sudo apt install zsh' then 'just shell'"
+        family="$({{dotfiles}}/scripts/distro-family.sh 2>/dev/null)" || family=""
+        case "$family" in
+            debian) warn "zsh missing, run 'sudo apt install zsh' then 'just shell'" ;;
+            arch) warn "zsh missing, run 'sudo pacman -S zsh' then 'just shell'" ;;
+            *) warn "zsh missing, install zsh with your package manager then run 'just shell'" ;;
+        esac
     fi
     login_shell="$(getent passwd "$USER" | cut -d: -f7)"
     if [ "$(basename "$login_shell")" = "zsh" ]; then
