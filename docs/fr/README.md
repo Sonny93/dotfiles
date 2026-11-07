@@ -7,8 +7,8 @@ zsh, git, mise, tmux, Starship et Tabby, répartis par machine : Windows 11, XPS
 | Machine | Contenu | Vérifier avec |
 |---|---|---|
 | **Windows 11** | Tabby + Bitwarden (agent SSH) + `~/.ssh/config` : on se connecte aux autres machines depuis là | Tabby ouvre la connexion par défaut |
-| **XPS** (Debian ou Arch) | Tout ce qu'a la machine de dev + Tabby + Bitwarden (agent SSH) + `~/.ssh/config` | `just doctor-dev` + Tabby ouvre la connexion par défaut |
-| **Machine de dev** (Debian ou Arch) | Shell + tous les outils mise + git + `gh` + config Claude Code | `just doctor-dev` |
+| **XPS** (CachyOS, base Arch) | Tout ce qu'a la machine de dev + Tabby + Bitwarden (agent SSH) + `~/.ssh/config` | `just doctor-dev` + Tabby ouvre la connexion par défaut |
+| **Machine de dev** (Debian) | Shell + tous les outils mise + git + `gh` + config Claude Code | `just doctor-dev` |
 | **Serveur / VPS** (Debian) | Shell seulement. Pas de clé privée, pas de compte GitHub, rien à voler | `just doctor-server` |
 
 ## Sommaire
@@ -91,13 +91,13 @@ Mise à jour : voir [Tabby](#tabby).
 
 ### Installer
 
-1. Paquets de base. Sur Debian :
+1. Paquets de base. Sur Debian (machine de dev) :
 
    ```sh
    sudo apt install git curl zsh
    ```
 
-   Sur Arch :
+   Sur Arch (XPS) :
 
    ```sh
    sudo pacman -S --needed git curl zsh
