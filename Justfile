@@ -12,24 +12,38 @@ help:
     @just --list --unsorted
 
 # Set up or update a dev machine (the XPS included)
-dev: apt build-deps shell mise tmux git gh-auth notes claude doctor-dev
+dev: system build-deps shell mise tmux git gh-auth notes claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
 alias xps := dev
 
 # Set up or update a server
-server: apt shell doctor-server
+server: system shell doctor-server
     #!/usr/bin/env bash
     echo "Server setup done. Reload the shell with 'exec zsh'."
 
-# Upgrade system packages
-apt:
+# Upgrade system packages (apt or pacman)
+system:
     #!/usr/bin/env bash
     set -e
-    sudo apt update
-    sudo apt full-upgrade
-    sudo apt autoremove
+    family="$({{dotfiles}}/scripts/distro-family.sh)"
+    case "$family" in
+        debian)
+            sudo apt update
+            sudo apt full-upgrade
+            sudo apt autoremove
+            ;;
+        arch)
+            sudo pacman -Syu
+            mapfile -t orphan_packages < <(pacman -Qdtq)
+            if [ "${#orphan_packages[@]}" -eq 0 ]; then
+                echo "No orphan packages."
+                exit 0
+            fi
+            sudo pacman -Rns "${orphan_packages[@]}"
+            ;;
+    esac
 
 # Install the system packages mise needs to build tools from source (tmux)
 build-deps:

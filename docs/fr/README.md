@@ -120,7 +120,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks et shellcheck), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `system`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks et shellcheck), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -217,7 +217,7 @@ Tabby : voir [Tabby](#tabby).
    just server
    ```
 
-   `just server` enchaîne `apt`, `shell` et `doctor-server`. `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
+   `just server` enchaîne `system`, `shell` et `doctor-server`. `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
 
 À ne jamais faire sur un serveur : y mettre la clé privée, s'y connecter à GitHub, ou activer `ForwardAgent` vers lui (root sur le serveur pourrait utiliser ta clé tant que tu es connecté). Le transfert d'agent est réservé aux machines de dev à toi.
 
@@ -239,9 +239,9 @@ exec zsh
 
 | Commande | Rôle | Dev / XPS | Serveur |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
-| `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
-| `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
+| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
+| `just server` | Installer / mettre à jour un serveur : `system`, `shell`, `doctor-server` | | ✓ |
+| `just system` | Mettre à jour les paquets système (apt ou pacman) | ✓ | ✓ |
 | `just build-deps` | Installer les paquets système pour compiler tmux (`build-essential`, `libncurses-dev`, `bison`) | ✓ | |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
