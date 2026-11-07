@@ -257,7 +257,7 @@ exec zsh
 
 ## Shell
 
-zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). The `update` command updates the system (`apt`), then the tools (`mise upgrade`), then restarts idle Claude Code instances in tmux (`tmux/restart-claude.sh`). Keyboard shortcuts (Ctrl+arrows, Home/End, Delete…) come from Oh My Zsh's `key-bindings.zsh` file, loaded on its own through zinit: it also handles the sequences Tabby sends on Windows. Every tool comes from mise, with a single config for all machines.
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). The `update` command updates the system (`apt` or `pacman`), then the tools (`mise upgrade`), then restarts idle Claude Code instances in tmux (`tmux/restart-claude.sh`). Keyboard shortcuts (Ctrl+arrows, Home/End, Delete…) come from Oh My Zsh's `key-bindings.zsh` file, loaded on its own through zinit: it also handles the sequences Tabby sends on Windows. Every tool comes from mise, with a single config for all machines.
 
 Each machine gets a colored badge (emoji) computed from its hostname, shown in the tab title and in the prompt: no configuration. If two machines collide, rename one of them or add `export MACHINE_BADGE=🟢` to `~/.zshenv` on that machine.
 
