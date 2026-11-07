@@ -4,7 +4,7 @@ Personal setup for zsh, git, mise, Starship and Tabby, split into four machine r
 
 - **Windows 11**: client only (Tabby + Bitwarden SSH agent). No git, no clone: files come from the GitHub raw URL, set up by `tabby/install.ps1`, never by `just`.
 - **XPS** (Arch laptop, CachyOS): client and dev, everything a dev machine has (`just xps`) plus Bitwarden and Tabby.
-- **Dev machine**: shell, every mise tool, git hooks, `gh`, Claude Code config (`just dev`). Reached over SSH from Windows 11 and the XPS, with no key of its own: it borrows the client's Bitwarden agent through `ForwardAgent`.
+- **Dev machine** (Debian): shell, every mise tool, git hooks, `gh`, Claude Code config (`just dev`). Reached over SSH from Windows 11 and the XPS, with no key of its own: it borrows the client's Bitwarden agent through `ForwardAgent`.
 - **Server / VPS**: shell only (`just server`).
 
 ## Setting up a machine
