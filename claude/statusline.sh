@@ -241,6 +241,9 @@ PERCENT_MULTIPLIER=100
 SEPARATOR_WIDTH=3
 UTF8_LOCALE="C.UTF-8"
 EMPTY_SETTINGS_FILE="/dev/null"
+CLAUDE_PROCESS_NAME="claude"
+AUTOCOMPACT_FLAG="--autocompact"
+MAX_PROCESS_ANCESTORS=8
 
 SESSION_FIELDS_FILTER='
   def whole: if type == "number" then floor else . end;
@@ -253,6 +256,7 @@ SESSION_FIELDS_FILTER='
     (.model.id // "") as $model_id
     | first(
         ($environment_window | if test("^[0-9]+$") then tonumber else null end),
+        ($flag_window | if test("^[0-9]+$") then tonumber else null end),
         model_auto_compact_window($model_id),
         model_auto_compact_window($model_id | model_id_without_suffix),
         (try (settings_object | .autoCompactWindow | numeric_or_null) catch null),
@@ -292,12 +296,66 @@ SESSION_FIELDS_FILTER='
   } | to_entries[] | "\(.key)=\(.value // "" | tostring | @sh)"
 '
 
+parent_process_id() {
+  local stat_line
+  IFS= read -r stat_line < "/proc/$1/stat" 2>/dev/null || return 1
+  local after_command="${stat_line##*) }" parent_id
+  read -r _ parent_id _ <<< "$after_command"
+  [[ "$parent_id" =~ ^[0-9]+$ ]] || return 1
+  printf '%s' "$parent_id"
+}
+
+is_claude_process() {
+  local arguments=()
+  mapfile -d '' -t arguments < "/proc/$1/cmdline" 2>/dev/null || return 1
+  [ "${arguments[0]##*/}" = "$CLAUDE_PROCESS_NAME" ]
+}
+
+find_claude_process_id() {
+  local process_id="$PPID" level
+  for ((level = 0; level < MAX_PROCESS_ANCESTORS; level++)); do
+    [[ "$process_id" =~ ^[0-9]+$ ]] || return 1
+    [ "$process_id" -le 1 ] && return 1
+    if is_claude_process "$process_id"; then
+      printf '%s' "$process_id"
+      return 0
+    fi
+    process_id=$(parent_process_id "$process_id") || return 1
+  done
+  return 1
+}
+
+parse_window_size() {
+  local value="$1"
+  [[ "$value" =~ ^([0-9]+)([kKmM]?)$ ]] || return 0
+  case "${BASH_REMATCH[2]}" in
+    [kK]) printf '%s' "$((BASH_REMATCH[1] * TOKENS_PER_THOUSAND))" ;;
+    [mM]) printf '%s' "$((BASH_REMATCH[1] * TOKENS_PER_MILLION))" ;;
+    *) printf '%s' "${BASH_REMATCH[1]}" ;;
+  esac
+}
+
+read_autocompact_flag() {
+  local process_id arguments=() index argument
+  process_id=$(find_claude_process_id) || return 0
+  mapfile -d '' -t arguments < "/proc/$process_id/cmdline" 2>/dev/null || return 0
+  for index in "${!arguments[@]}"; do
+    argument="${arguments[index]}"
+    case "$argument" in
+      "$AUTOCOMPACT_FLAG") parse_window_size "${arguments[index + 1]}"; return 0 ;;
+      "$AUTOCOMPACT_FLAG"=*) parse_window_size "${argument#*=}"; return 0 ;;
+    esac
+  done
+  return 0
+}
+
 load_session_fields() {
   local assignments settings_file="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json"
   [ -r "$settings_file" ] || settings_file="$EMPTY_SETTINGS_FILE"
   assignments=$(jq -r \
     --rawfile settings_text "$settings_file" \
     --arg environment_window "${CLAUDE_CODE_AUTO_COMPACT_WINDOW:-}" \
+    --arg flag_window "$(read_autocompact_flag)" \
     --argjson percent_multiplier "$PERCENT_MULTIPLIER" \
     --argjson milliseconds_per_minute "$MILLISECONDS_PER_MINUTE" \
     "$SESSION_FIELDS_FILTER" <<< "$INPUT" 2>/dev/null)
