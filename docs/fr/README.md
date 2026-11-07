@@ -7,8 +7,8 @@ zsh, git, mise, tmux, Starship et Tabby, répartis par machine : Windows 11, XPS
 | Machine | Contenu | Vérifier avec |
 |---|---|---|
 | **Windows 11** | Tabby + Bitwarden (agent SSH) + `~/.ssh/config` : on se connecte aux autres machines depuis là | Tabby ouvre la connexion par défaut |
-| **XPS** (Debian) | Tout ce qu'a la machine de dev + Tabby + Bitwarden (agent SSH) + `~/.ssh/config` | `just doctor-dev` + Tabby ouvre la connexion par défaut |
-| **Machine de dev** (Debian) | Shell + tous les outils mise + git + `gh` + config Claude Code | `just doctor-dev` |
+| **XPS** (Debian ou Arch) | Tout ce qu'a la machine de dev + Tabby + Bitwarden (agent SSH) + `~/.ssh/config` | `just doctor-dev` + Tabby ouvre la connexion par défaut |
+| **Machine de dev** (Debian ou Arch) | Shell + tous les outils mise + git + `gh` + config Claude Code | `just doctor-dev` |
 | **Serveur / VPS** (Debian) | Shell seulement. Pas de clé privée, pas de compte GitHub, rien à voler | `just doctor-server` |
 
 ## Sommaire
@@ -91,10 +91,16 @@ Mise à jour : voir [Tabby](#tabby).
 
 ### Installer
 
-1. Paquets de base :
+1. Paquets de base. Sur Debian :
 
    ```sh
    sudo apt install git curl zsh
+   ```
+
+   Sur Arch :
+
+   ```sh
+   sudo pacman -S --needed git curl zsh
    ```
 
 2. Cloner le repo (le chemin `~/dotfiles` est codé en dur) et installer [mise](https://mise.jdx.dev) :
@@ -120,7 +126,7 @@ Mise à jour : voir [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` enchaîne `apt`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks et shellcheck), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
+   `just dev` enchaîne `system`, `build-deps` (paquets pour compiler tmux), `shell`, `mise` (tous les outils), `tmux` (liens de la config tmux et du thème micro), `git` (config + hook gitleaks et shellcheck), `gh-auth`, `notes` (dépôt git des notes), `claude` (config Claude Code), puis `doctor-dev`, qui ne doit afficher que des lignes `OK` / `INFO`.
 
    Pas d'identité git par défaut : on la définit dans chaque repo (`git config user.name` / `user.email`). Pour une identité par défaut sur la machine, la mettre dans `~/.gitconfig.local` (section `[user]`).
 
@@ -217,7 +223,7 @@ Tabby : voir [Tabby](#tabby).
    just server
    ```
 
-   `just server` enchaîne `apt`, `shell` et `doctor-server`. `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
+   `just server` enchaîne `system`, `shell` et `doctor-server`. `just shell` n'installe que les outils dont le shell a besoin (starship, fzf, just, fastfetch), pas toute la config mise.
 
 À ne jamais faire sur un serveur : y mettre la clé privée, s'y connecter à GitHub, ou activer `ForwardAgent` vers lui (root sur le serveur pourrait utiliser ta clé tant que tu es connecté). Le transfert d'agent est réservé aux machines de dev à toi.
 
@@ -239,10 +245,10 @@ exec zsh
 
 | Commande | Rôle | Dev / XPS | Serveur |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `apt`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
-| `just server` | Installer / mettre à jour un serveur : `apt`, `shell`, `doctor-server` | | ✓ |
-| `just apt` | Mettre à jour les paquets système | ✓ | ✓ |
-| `just build-deps` | Installer les paquets système pour compiler tmux (`build-essential`, `libncurses-dev`, `bison`) | ✓ | |
+| `just dev` (alias `just xps`) | Installer / mettre à jour une machine de dev : `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
+| `just server` | Installer / mettre à jour un serveur : `system`, `shell`, `doctor-server` | | ✓ |
+| `just system` | Mettre à jour les paquets système (apt ou pacman) | ✓ | ✓ |
+| `just build-deps` | Installer les paquets système pour compiler tmux (Debian : `build-essential`, `libncurses-dev`, `bison` ; Arch : `base-devel`, `ncurses`, `bison`) | ✓ | |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
 | `just mise` | Installer / mettre à jour tous les outils de `mise/config.toml` | ✓ | |
 | `just tmux` | Lier la config tmux (`~/.config/tmux/tmux.conf`) et le thème micro Cobalt2 (`~/.config/micro/colorschemes/cobalt2.micro`) | ✓ | |
@@ -252,12 +258,12 @@ exec zsh
 | `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills, config rtk) et fusionner les réglages de base | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
 | `just doctor-dev` | Vérifier toute la machine de dev (lance aussi `doctor-server`) | ✓ | |
-| `just test` | Lancer les tests des scripts tmux (`tmux/*.test.sh`) sur un serveur tmux isolé | ✓ | |
+| `just test` | Lancer les tests des scripts (`tmux/*.test.sh` sur un serveur tmux isolé, `scripts/*.test.sh`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
 
 ## Shell
 
-zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). La commande `update` met à jour le système (`apt`), puis les outils (`mise upgrade`), puis relance les Claude Code inactifs dans tmux (`tmux/restart-claude.sh`). Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit : il gère aussi les séquences envoyées par Tabby sous Windows. Tous les outils viennent de mise, avec une seule config pour toutes les machines.
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). La commande `update` met à jour le système (`apt` ou `pacman`), puis les outils (`mise upgrade`), puis relance les Claude Code inactifs dans tmux (`tmux/restart-claude.sh`). Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit : il gère aussi les séquences envoyées par Tabby sous Windows. Tous les outils viennent de mise, avec une seule config pour toutes les machines.
 
 Chaque machine reçoit une pastille colorée (emoji) calculée à partir de son nom d'hôte, affichée dans le titre d'onglet et dans le prompt : aucune configuration. En cas de collision entre deux machines, renommer l'une d'elles ou ajouter `export MACHINE_BADGE=🟢` dans `~/.zshenv` sur cette machine.
 
@@ -281,7 +287,7 @@ Les connexions ne passent pas par la config Tabby : il les lit dans `~/.ssh/conf
 
 ## tmux
 
-Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH tombe. mise compile tmux depuis ses sources (plugin `mise-tmux`, avec `build-essential`, `libncurses-dev` et `bison` installés par `just build-deps`) : les binaires précompilés de `tmux/tmux-builds` ont des semaines de retard sur les versions de tmux. `tmux/tmux.conf` (lié par `just tmux`) ne contient que ce qui diffère des valeurs par défaut de tmux. Le préfixe est **Ctrl+A** (Ctrl+B sert à Claude Code pour passer une commande en arrière-plan).
+Sur les machines de dev, tmux garde les sessions en vie quand la connexion SSH tombe. mise compile tmux depuis ses sources (plugin `mise-tmux`, avec `build-essential`, `libncurses-dev` et `bison` (Debian) ou `base-devel`, `ncurses` et `bison` (Arch) installés par `just build-deps`) : les binaires précompilés de `tmux/tmux-builds` ont des semaines de retard sur les versions de tmux. `tmux/tmux.conf` (lié par `just tmux`) ne contient que ce qui diffère des valeurs par défaut de tmux. Le préfixe est **Ctrl+A** (Ctrl+B sert à Claude Code pour passer une commande en arrière-plan).
 
 `t` ouvre ou rattache une session tmux. `t .` (ou tout chemin, par exemple `t ~/dev/app`), lancé depuis un projet (n'importe quel sous-dossier d'un repo git), ouvre ou rattache la session du projet, nommée d'après le dossier de la racine git, dans le premier onglet. Une session sur le point d'être créée demande d'abord sa disposition (fzf, `tmux/layouts.sh`) : « Claude + shells » (`Entrée` ou `w` : Claude Code à gauche, deux shells empilés à droite), « Claude seul » (`c`) ou « Shell seul » (`s`) ; `Échap` ne crée rien. `tmux/workspace.sh <disposition> <dossier> <session>` la construit. Dans une nouvelle session, Claude reprend la dernière conversation du dossier (`claude --continue`), par exemple après un redémarrage de tmux, mais seulement si le dossier en a une (`~/.claude/projects`), car `--continue` échoue sinon ; un onglet ajouté à une session existante démarre une conversation neuve, pour que deux onglets ne partagent jamais la même. `t <nom>` rattache la session de ce nom, ou la crée si `<nom>` est un projet connu (`~/dev/<nom>` ou `~/dotfiles`) ; sinon, si `gh` est installé, il clone dans `~/dev/<nom>` le dépôt GitHub de ce nom quand il figure dans le cache (nom comparé sans tenir compte de la casse, le dossier prend l'orthographe du dépôt ; la question de la disposition vient d'abord, puis le clone affiche sa progression, et un clone en échec est une erreur, jamais un dossier vide) ; sinon il crée le dossier de projet `~/dev/<nom>` (lettres, chiffres, `_`, `.` et `-`, sans commencer par `.` ni `-` ; pas de `git init`) après la question de la disposition. `Tab` complète les sessions, les projets et les noms des dépôts GitHub pas encore clonés. Le cache (`~/.cache/dotfiles/github-repositories`) liste vos dépôts et ceux de vos organisations, sans les dépôts archivés ni les forks, via `gh` ; il est rafraîchi en arrière-plan quand il a plus de 10 minutes, donc seule la toute première utilisation sur une machine peut attendre quelques secondes. Les décisions viennent du seul cache, jamais du réseau. Les dépôts qui ont déjà une session ou un dossier, `~/dotfiles` et `~/notes` ne sont jamais proposés. Sans `gh` (serveurs), aucun comportement GitHub. `t` seul rattache la dernière session, ou ouvre le sélecteur de sessions quand on est déjà dans tmux ; sans aucune session, il ouvre le sélecteur directement dans le terminal, limité aux projets : `Entrée` crée la session du projet choisi (après la question de la disposition) et s'y rattache, `Échap` ne crée rien. Quand Claude se termine, son pane reste ouvert sur un shell. Dans tmux, `t` bascule vers la session sans en imbriquer une autre.
 

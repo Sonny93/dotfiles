@@ -2,7 +2,8 @@ home := env_var('HOME')
 dotfiles := home + '/dotfiles'
 shell_tools := 'starship fzf just fastfetch'
 hook_tools := 'gitleaks shellcheck'
-build_packages := 'build-essential libncurses-dev bison'
+debian_build_packages := 'build-essential libncurses-dev bison'
+arch_build_packages := 'base-devel ncurses bison'
 
 [private]
 default: help
@@ -12,30 +13,48 @@ help:
     @just --list --unsorted
 
 # Set up or update a dev machine (the XPS included)
-dev: apt build-deps shell mise tmux git gh-auth notes claude doctor-dev
+dev: system build-deps shell mise tmux git gh-auth notes claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
 alias xps := dev
 
 # Set up or update a server
-server: apt shell doctor-server
+server: system shell doctor-server
     #!/usr/bin/env bash
     echo "Server setup done. Reload the shell with 'exec zsh'."
 
-# Upgrade system packages
-apt:
+# Upgrade system packages (apt or pacman)
+system:
     #!/usr/bin/env bash
     set -e
-    sudo apt update
-    sudo apt full-upgrade
-    sudo apt autoremove
+    family="$({{dotfiles}}/scripts/distro-family.sh)"
+    case "$family" in
+        debian)
+            sudo apt update
+            sudo apt full-upgrade
+            sudo apt autoremove
+            ;;
+        arch)
+            sudo pacman -Syu
+            mapfile -t orphan_packages < <(pacman -Qdtq)
+            if [ "${#orphan_packages[@]}" -eq 0 ]; then
+                echo "No orphan packages."
+                exit 0
+            fi
+            sudo pacman -Rns "${orphan_packages[@]}"
+            ;;
+    esac
 
 # Install the system packages mise needs to build tools from source (tmux)
 build-deps:
     #!/usr/bin/env bash
     set -e
-    sudo apt install -y {{build_packages}}
+    family="$({{dotfiles}}/scripts/distro-family.sh)"
+    case "$family" in
+        debian) sudo apt install -y {{debian_build_packages}} ;;
+        arch) sudo pacman -S --needed --noconfirm {{arch_build_packages}} ;;
+    esac
     echo "Build dependencies installed."
 
 # Set up zsh, Starship and the mise tools the shell needs
@@ -43,7 +62,12 @@ shell:
     #!/usr/bin/env bash
     set -e
     if ! command -v zsh >/dev/null 2>&1; then
-        echo "ERROR: zsh is not installed. Run 'sudo apt install zsh' first."
+        family="$({{dotfiles}}/scripts/distro-family.sh)"
+        case "$family" in
+            debian) install_command="sudo apt install zsh" ;;
+            arch) install_command="sudo pacman -S zsh" ;;
+        esac
+        echo "ERROR: zsh is not installed. Run '$install_command' first."
         exit 1
     fi
     mkdir -p {{home}}/.config/mise
@@ -270,7 +294,12 @@ doctor-server:
     if command -v zsh >/dev/null 2>&1; then
         ok "zsh installed"
     else
-        warn "zsh missing, run 'sudo apt install zsh' then 'just shell'"
+        family="$({{dotfiles}}/scripts/distro-family.sh 2>/dev/null)" || family=""
+        case "$family" in
+            debian) warn "zsh missing, run 'sudo apt install zsh' then 'just shell'" ;;
+            arch) warn "zsh missing, run 'sudo pacman -S zsh' then 'just shell'" ;;
+            *) warn "zsh missing, install zsh with your package manager then run 'just shell'" ;;
+        esac
     fi
     login_shell="$(getent passwd "$USER" | cut -d: -f7)"
     if [ "$(basename "$login_shell")" = "zsh" ]; then
@@ -294,12 +323,12 @@ doctor-server:
         fi
     done
 
-# Run the tmux script tests (isolated tmux server, needs tmux)
+# Run the script tests (tmux ones use an isolated tmux server, needs tmux)
 test:
     #!/usr/bin/env bash
     set -euo pipefail
     failed=0
-    for test_file in {{dotfiles}}/tmux/*.test.sh; do
+    for test_file in {{dotfiles}}/tmux/*.test.sh {{dotfiles}}/scripts/*.test.sh; do
         "$test_file" || failed=1
     done
     exit "$failed"
@@ -350,11 +379,23 @@ doctor-dev: doctor-server
             warn "$tool missing, run 'just mise'"
         fi
     done
+    family="$({{dotfiles}}/scripts/distro-family.sh 2>/dev/null)" || family=""
     missing_build_packages=0
-    for package in {{build_packages}}; do
-        [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" = "install ok installed" ] || missing_build_packages=1
-    done
-    if [ "$missing_build_packages" = 0 ]; then
+    case "$family" in
+        debian)
+            for package in {{debian_build_packages}}; do
+                [ "$(dpkg-query -W -f='${Status}' "$package" 2>/dev/null)" = "install ok installed" ] || missing_build_packages=1
+            done
+            ;;
+        arch)
+            for package in {{arch_build_packages}}; do
+                pacman -Q "$package" >/dev/null 2>&1 || missing_build_packages=1
+            done
+            ;;
+    esac
+    if [ -z "$family" ]; then
+        warn "unsupported distribution (only Debian and Arch families), build packages not checked"
+    elif [ "$missing_build_packages" = 0 ]; then
         ok "build packages installed"
     else
         warn "build packages missing, run 'just build-deps'"
