@@ -22,9 +22,23 @@ function print_update_banner {
   printf "\n${1} %s ${UPDATE_RESET_STYLE}\n\n" "$2"
 }
 
+function upgrade_debian_packages {
+  sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove --purge -y
+}
+
+function upgrade_arch_packages {
+  sudo pacman -Syu --noconfirm || return
+  local orphan_packages
+  orphan_packages="$(pacman -Qdtq)"
+  [ -z "$orphan_packages" ] && return 0
+  printf '%s\n' "$orphan_packages" | sudo pacman -Rns --noconfirm -
+}
+
 function update {
-  print_update_banner "$UPDATE_STEP_STYLE" "1/3 System packages (apt)"
-  sudo apt update -y && sudo apt full-upgrade -y && sudo apt autoremove --purge -y || return
+  local family
+  family="$(~/dotfiles/scripts/distro-family.sh)" || return
+  print_update_banner "$UPDATE_STEP_STYLE" "1/3 System packages ($([ "$family" = debian ] && echo apt || echo pacman))"
+  upgrade_${family}_packages || return
   print_update_banner "$UPDATE_STEP_STYLE" "2/3 Tools (mise)"
   mise upgrade || return
   print_update_banner "$UPDATE_STEP_STYLE" "3/3 Claude Code instances (tmux)"
