@@ -3,7 +3,7 @@
 Personal setup for zsh, git, mise, Starship and Tabby, split into four machine roles:
 
 - **Windows 11**: client only (Tabby + Bitwarden SSH agent). No git, no clone: files come from the GitHub raw URL, set up by `tabby/install.ps1`, never by `just`.
-- **XPS** (Debian laptop): client and dev, everything a dev machine has (`just xps`) plus Bitwarden and Tabby.
+- **XPS** (Arch laptop, CachyOS): client and dev, everything a dev machine has (`just xps`) plus Bitwarden and Tabby.
 - **Dev machine**: shell, every mise tool, git hooks, `gh`, Claude Code config (`just dev`). Reached over SSH from Windows 11 and the XPS, with no key of its own: it borrows the client's Bitwarden agent through `ForwardAgent`.
 - **Server / VPS**: shell only (`just server`).
 
@@ -24,6 +24,7 @@ The repo is public: it holds nothing that grants access or reveals the user's ne
 - **Tabby**: `tabby/config.yaml` holds only overrides of Tabby's defaults, each with a comment. `tabby/install.ps1` and `tabby/install.sh` implement the same behavior: a change to one lands in the other in the same change. Tabby must be closed while they run.
 - **mise**: one `mise/config.toml` for every machine; servers install only the Justfile's `shell_tools` subset.
 - **Claude Code**: only machine-independent, non-sensitive settings go in `claude/settings.json`. `just claude` merges it with jq `*`, which replaces arrays instead of merging them: an array in the base (`hooks.PreToolUse`, `autoMode.allow`…) overwrites the machine's copy whole, so it lists every entry.
+- **System packages**: every apt call has a pacman twin, picked through `scripts/distro-family.sh` (Debian and Arch families only, anything else is an error).
 - **Docs in sync**: any Justfile change updates `README.md` and its French copy `docs/fr/README.md` in the same change (Commands table + the affected install steps).
 
 ## Conventions

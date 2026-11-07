@@ -7,8 +7,8 @@ zsh, git, mise, tmux, Starship and Tabby, split by machine: Windows 11, XPS, dev
 | Machine | Contents | Check with |
 |---|---|---|
 | **Windows 11** | Tabby + Bitwarden (SSH agent) + `~/.ssh/config`: you connect to the other machines from here | Tabby opens the default connection |
-| **XPS** (Debian) | Everything the dev machine has + Tabby + Bitwarden (SSH agent) + `~/.ssh/config` | `just doctor-dev` + Tabby opens the default connection |
-| **Dev machine** (Debian) | Shell + every mise tool + git + `gh` + Claude Code config | `just doctor-dev` |
+| **XPS** (Debian or Arch) | Everything the dev machine has + Tabby + Bitwarden (SSH agent) + `~/.ssh/config` | `just doctor-dev` + Tabby opens the default connection |
+| **Dev machine** (Debian or Arch) | Shell + every mise tool + git + `gh` + Claude Code config | `just doctor-dev` |
 | **Server / VPS** (Debian) | Shell only. No private key, no GitHub account, nothing to steal | `just doctor-server` |
 
 ## Contents
@@ -91,10 +91,16 @@ To update: see [Tabby](#tabby).
 
 ### Install
 
-1. Base packages:
+1. Base packages. On Debian:
 
    ```sh
    sudo apt install git curl zsh
+   ```
+
+   On Arch:
+
+   ```sh
+   sudo pacman -S --needed git curl zsh
    ```
 
 2. Clone the repo (the `~/dotfiles` path is hard-coded) and install [mise](https://mise.jdx.dev):
