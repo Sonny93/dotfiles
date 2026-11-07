@@ -120,7 +120,7 @@ To update: see [Tabby](#tabby).
    just dev
    ```
 
-   `just dev` runs `apt`, `build-deps` (packages to build tmux), `shell`, `mise` (all the tools), `tmux` (links for the tmux config and the micro theme), `git` (config + gitleaks and shellcheck hook), `gh-auth`, `notes` (git repo for the notes), `claude` (Claude Code config), then `doctor-dev`, which must print only `OK` / `INFO` lines.
+   `just dev` runs `system`, `build-deps` (packages to build tmux), `shell`, `mise` (all the tools), `tmux` (links for the tmux config and the micro theme), `git` (config + gitleaks and shellcheck hook), `gh-auth`, `notes` (git repo for the notes), `claude` (Claude Code config), then `doctor-dev`, which must print only `OK` / `INFO` lines.
 
    No default git identity: set it in each repo (`git config user.name` / `user.email`). For a default identity on the machine, put it in `~/.gitconfig.local` (`[user]` section).
 
@@ -217,7 +217,7 @@ Tabby: see [Tabby](#tabby).
    just server
    ```
 
-   `just server` runs `apt`, `shell` and `doctor-server`. `just shell` only installs the tools the shell needs (starship, fzf, just, fastfetch), not the whole mise config.
+   `just server` runs `system`, `shell` and `doctor-server`. `just shell` only installs the tools the shell needs (starship, fzf, just, fastfetch), not the whole mise config.
 
 Never do on a server: put the private key on it, sign in to GitHub from it, or enable `ForwardAgent` to it (root on the server could use your key while you are connected). Agent forwarding is reserved for your own dev machines.
 
@@ -239,9 +239,9 @@ exec zsh
 
 | Command | Purpose | Dev / XPS | Server |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Install / update a dev machine: `apt`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
-| `just server` | Install / update a server: `apt`, `shell`, `doctor-server` | | ✓ |
-| `just apt` | Update the system packages | ✓ | ✓ |
+| `just dev` (alias `just xps`) | Install / update a dev machine: `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
+| `just server` | Install / update a server: `system`, `shell`, `doctor-server` | | ✓ |
+| `just system` | Update the system packages (apt or pacman) | ✓ | ✓ |
 | `just build-deps` | Install the system packages to build tmux (`build-essential`, `libncurses-dev`, `bison`) | ✓ | |
 | `just shell` | zsh, Starship and the shell's mise tools | ✓ | ✓ |
 | `just mise` | Install / update every tool in `mise/config.toml` | ✓ | |
