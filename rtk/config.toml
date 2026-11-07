@@ -1,0 +1,8 @@
+[hooks]
+# rtk rewrites package-script lint into `rtk lint`, which runs ESLint with a JSON
+# formatter and fails (exit 2) on projects linting with oxlint or another tool.
+# Patterns starting with ^ are regexes matched at the start of the command.
+exclude_commands = [
+    "^pnpm (run )?lint([: ]|$)",
+    "^npm run lint([: ]|$)",
+]
