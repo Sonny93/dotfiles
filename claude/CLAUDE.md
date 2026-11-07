@@ -58,6 +58,6 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 # Tooling
 
 - Context7 first for library, framework, SDK, API and CLI documentation, setup and configuration, without being asked, before reading `node_modules` or searching the web. If its tools are missing or only offer authentication, stop and ask the user to run `/mcp`; continue without it only when the user says so. A subagent reports it as a blocker instead.
-- `@minimalstuff/*` are the user's own libraries: `ui` in `~/dev/ui-minimalstuff`, `tooling` in `~/dev/tooling-minimalstuff`. For their API, read the README, stories and source there instead of Context7 or the built files in `node_modules`; when the consumer's installed version differs from the local repo, trust the `node_modules` types. Never work around them in a consumer project: propose the change in the library.
+- `@minimalstuff/*` are the user's own libraries: `ui` in `~/dev/ui-minimalstuff`, `tooling` in `~/dev/tooling-minimalstuff`. For their API, read the README, stories and source there instead of Context7 or the built files in `node_modules`; when the consumer's installed version differs from the local repo, trust the `node_modules` types. Never work around them in a consumer project: change the library through the `minimalstuff-libs` skill (worktree + `link:`, release through CI).
 
 @RTK.md
