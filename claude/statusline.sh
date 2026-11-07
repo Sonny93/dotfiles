@@ -110,6 +110,8 @@ USAGE_DANGER_PERCENTAGE=80
 TOKENS_PER_THOUSAND=1000
 TOKENS_PER_MILLION=1000000
 SECONDS_PER_DAY=86400
+UNMEASURED_CONTEXT_SYMBOL='~'
+CONTEXT_WINDOW_PREFIX="context_window"
 
 usage_color() {
   local percentage="$1"
@@ -165,10 +167,27 @@ render_tokens() {
   printf ' %s' "${GRAY}$(format_token_count "$used_tokens")/$(format_token_count "$window_size")${RESET}"
 }
 
+is_unmeasured_context() {
+  [ "$1" = "$CONTEXT_WINDOW_PREFIX" ] && [ "$context_window_is_measured" != "true" ]
+}
+
+render_unmeasured_context() {
+  local label="$1" prefix="$2"
+  local window_size_name="${prefix}_context_window_size"
+  local window_size="${!window_size_name}"
+  printf '%s' "${GRAY}[${label} ${UNMEASURED_CONTEXT_SYMBOL}"
+  [ -n "$window_size" ] && printf '/%s' "$(format_token_count "$window_size")"
+  printf '%s' "]${RESET}"
+}
+
 render_usage() {
   local label="$1" prefix="$2" reset_format="$3"
   local percentage_name="${prefix}_used_percentage"
   local percentage="${!percentage_name}"
+  if is_unmeasured_context "$prefix"; then
+    render_unmeasured_context "$label" "$prefix"
+    return 0
+  fi
   [ -z "$percentage" ] && return 0
 
   printf '%s' "${GRAY}[${label}${RESET} $(usage_color "$percentage")${percentage}%${RESET}"
@@ -181,7 +200,7 @@ render_usages() {
   local usages=()
   local window label prefix reset_format usage
   for window in \
-    "ctx|context_window|" \
+    "ctx|${CONTEXT_WINDOW_PREFIX}|" \
     "5h|rate_limits_five_hour|%H:%M" \
     "7d|rate_limits_seven_day|%a %Hh"; do
     IFS='|' read -r label prefix reset_format <<< "$window"
@@ -289,6 +308,7 @@ SESSION_FIELDS_FILTER='
     cost_total_lines_removed: (.cost.total_lines_removed | whole),
     cost_total_minutes: (.cost.total_duration_ms | if type == "number" then . / $milliseconds_per_minute | floor else . end),
     context_window_used_percentage: effective_percentage($window),
+    context_window_is_measured: (.context_window.current_usage != null),
     context_window_total_input_tokens: .context_window.total_input_tokens,
     context_window_context_window_size: $window,
     rate_limits_five_hour_used_percentage: (.rate_limits.five_hour.used_percentage | whole),
