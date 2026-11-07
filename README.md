@@ -252,7 +252,7 @@ exec zsh
 | `just claude` | Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills, rtk config) and merge the base settings | ✓ | |
 | `just doctor-server` | Check the shell | ✓ | ✓ |
 | `just doctor-dev` | Check the whole dev machine (also runs `doctor-server`) | ✓ | |
-| `just test` | Run the tmux script tests (`tmux/*.test.sh`) on an isolated tmux server | ✓ | |
+| `just test` | Run the script tests (`tmux/*.test.sh` on an isolated tmux server, `scripts/*.test.sh`) | ✓ | |
 | `just uninstall-omz` | Remove an old Oh My Zsh / Powerlevel10k install | | |
 
 ## Shell
