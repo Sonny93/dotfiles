@@ -20,9 +20,10 @@ plan that `plan-phase` can execute. It fixes nothing.
 - A branch name: the diff against the default branch.
 - A path: that subtree.
 
-State the project's size and stakes in one line (small PWA, multi-user
-service, public API, credentials, money, personal data). Reviewers use it
-to decide how much to report.
+Read the README's "Why" section and paste it into every brief. Without
+one, state the project's size and stakes in one line (small PWA,
+multi-user service, public API, credentials, money, personal data) and
+propose adding the section. Reviewers use it to decide how much to report.
 
 ## 2. Pick the reviewers
 

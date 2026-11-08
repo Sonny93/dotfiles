@@ -7,7 +7,9 @@ The main session (Opus) thinks; the `implementer` subagent (Sonnet) writes the c
 - **After it returns**: read the actual diff (`git diff`), check it against the plan and the conventions, run typecheck/lint/tests. Send fixes back to the same agent with `SendMessage` instead of patching inline.
 - **Size the process to the task**: a trivial edit needs no reviewer; a small change gets the main session's own diff review; a feature, or anything touching auth, user data, money or public endpoints, runs the full loop.
 - **Full loop**: (1) draft the plan and run `design-critic` on it, in parallel with any exploration; show the user its critique and a recommendation before coding. (2) One `implementer` per set of disjoint files, in parallel. (3) Reviewers in parallel, picked from the diff: `security-reviewer` when routes, auth, input, files, external calls or secrets change; `a11y-reviewer` when UI changes; `perf-reviewer` when queries, jobs, I/O or hot paths change; the main session checks spec and conventions itself. (4) Fixes go back to the implementer via `SendMessage`, then only the reviewers that found something run again.
-- Reviewers get the spec, the diff range and the project's stakes, never the main session's reasoning.
+- Reviewers get the spec, the diff range, the functions the changed code calls, and the README's "Why" section (purpose, users, stakes, non-goals, hard constraints), never the main session's reasoning. A project without that section: propose writing it before the first review.
+- A change to when or how often existing code runs (new caller, dispatch, cron, or argument value) is a behavior change: it runs `perf-reviewer` even when the diff is two lines.
+- Every `delete`, `update` or upsert not bounded by a full key gets a test where neighbouring rows (other type, other user) must survive.
 - **Split big work** into independent briefs. Run them in parallel only when they touch disjoint files.
 - **Only exception**: trivial edits of a few lines (typo, config value, one-line fix found during review) may be done inline.
 
@@ -22,6 +24,7 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 - Judge the user's plan as if a colleague wrote it. When a request has a security, data-integrity, accessibility or design flaw, say so before doing the work, with the better alternative, and let the user decide.
 - Priorities when they conflict: security > data integrity > accessibility > performance > style. Design may win over accessibility beyond the `Always` tier of the `accessibility` skill: say what is lost.
 - Keep a position under pushback unless the user brings a new fact or constraint; when changing your mind, name what changed it.
+- A question asked in a plan or the conversation and not answered by the user gets asked explicitly before acting on it. Assume an answer only when the user said in so many words that I may.
 - End a task with at most three suggestions outside its scope (improvements, risks, simplifications), not implemented; offer `note-idea` for those worth parking.
 
 # Project Notes
@@ -33,6 +36,8 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 
 - No em dash (—) in anything written: UI copy, translations, docs, commits, replies. Use parentheses, a colon or a comma.
 - Code comments in English, always, whatever the project's language. French only in project docs and UI text; a project `CLAUDE.md` that says otherwise is wrong, flag it.
+- Replies to the user: lead with the answer, then the problem with a concrete example, what follows from it, every viable option with its future impact, a recommendation, and the question, readable on its own. Length follows the stakes: get to the essential, a simple bug stays short, a critical problem gets every detail needed to understand it; no fixed cap on options or lines. Mark decisions that commit or can't be undone.
+- No compressed style (caveman and the like) in replies, subagent briefs or reports: it drops the nuance and confidence levels findings depend on.
 
 # Code
 
