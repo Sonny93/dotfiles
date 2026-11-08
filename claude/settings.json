@@ -12,7 +12,7 @@
       }
     }
   },
-  "preferredNotifChannel": "terminal_bell",
+  "preferredNotifChannel": "notifications_disabled",
   "statusLine": {
     "type": "command",
     "command": "bash \"$HOME/dotfiles/claude/statusline.sh\"",
@@ -58,6 +58,39 @@
             "type": "command",
             "command": "bash \"$HOME/dotfiles/claude/hooks/require-context7.sh\"",
             "timeout": 15
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/dotfiles/claude/hooks/ring-bell.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "StopFailure": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/dotfiles/claude/hooks/ring-bell.sh\"",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash \"$HOME/dotfiles/claude/hooks/ring-bell.sh\"",
+            "timeout": 5
           }
         ]
       }

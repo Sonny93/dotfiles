@@ -252,7 +252,7 @@ exec zsh
 | `just claude` | Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills, rtk config) and merge the base settings | ✓ | |
 | `just doctor-server` | Check the shell | ✓ | ✓ |
 | `just doctor-dev` | Check the whole dev machine (also runs `doctor-server`) | ✓ | |
-| `just test` | Run the tmux script tests (`tmux/*.test.sh`) on an isolated tmux server | ✓ | |
+| `just test` | Run the tmux script tests (`tmux/*.test.sh`) on an isolated tmux server, and the Claude hook tests (`claude/hooks/*.test.sh`) | ✓ | |
 | `just uninstall-omz` | Remove an old Oh My Zsh / Powerlevel10k install | | |
 
 ## Shell
@@ -291,7 +291,7 @@ tmux boils down to two notions: the session (usually a project) and the tab. `Al
 
 `Ctrl+A` then `n` opens the project's free-form notes in a popup (micro with the Cobalt2 theme, `micro/colorschemes/cobalt2.micro`, linked by `just tmux`; VS Code-style shortcuts: `Ctrl+S` saves, `Ctrl+Q` closes, `Ctrl+C` copies the selection to the workstation's clipboard (OSC 52), autosave, `Ctrl+Z` history kept after closing). The file is `~/notes/<project>.md`, outside the repos; the project is the git root folder of the current pane, created with a title on first use (`tmux/notes.sh`). `~/notes` is a git repo: opening does a pull, each close commits then pushes to the private GitHub repo `notes` created by `just notes`. Commits are signed `notes <notes@localhost>`, an address unknown to GitHub: they do not inflate the profile's contribution graph. On conflict or failure, a tmux message flags it: ask Claude to sync `~/notes`. This key replaces tmux's native `next-window`: `Alt+1` … `Alt+9` switch tabs.
 
-The status bar spans two lines, in Cobalt2 colors like Tabby: the first lists the sessions (the current one in yellow), the second the tabs, each named after the title of its Claude pane. A bell in any pane of the tab turns its tab pink; `claude/settings.json` sets `preferredNotifChannel` to `terminal_bell` so Claude rings when it has finished or is waiting for an answer. `Alt+1` … `Alt+9` switch tabs without the prefix, and so do `Alt+&` … `Alt+ç` (the AZERTY number row).
+The status bar spans two lines, in Cobalt2 colors like Tabby: the first lists the sessions (the current one in yellow), the second the tabs, each named after the title of its Claude pane. A bell in any pane of the tab turns its tab pink; Claude rings through `claude/hooks/ring-bell.sh` the moment it finishes a turn (not while background tasks or scheduled wakeups are still pending: it rings when it really finishes), when a turn fails, and when it waits for an answer (permission, question); `preferredNotifChannel` is `notifications_disabled` in `claude/settings.json`, so the built-in idle bell, 60s late and blind to background shells, never rings. `Alt+1` … `Alt+9` switch tabs without the prefix, and so do `Alt+&` … `Alt+ç` (the AZERTY number row).
 
 `Ctrl+A` then `Ctrl+K` opens a command palette (fzf in a popup): the actions of `tmux/palette.tsv` (label, shortcut, tmux command; one action = one line), `Enter` runs the command on the pane the palette was opened from, `Esc` closes (`tmux/command-palette.sh`).
 

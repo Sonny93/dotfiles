@@ -294,12 +294,12 @@ doctor-server:
         fi
     done
 
-# Run the tmux script tests (isolated tmux server, needs tmux)
+# Run the tmux script tests (isolated tmux server, needs tmux) and the Claude hook tests
 test:
     #!/usr/bin/env bash
     set -euo pipefail
     failed=0
-    for test_file in {{dotfiles}}/tmux/*.test.sh; do
+    for test_file in {{dotfiles}}/tmux/*.test.sh {{dotfiles}}/claude/hooks/*.test.sh; do
         "$test_file" || failed=1
     done
     exit "$failed"

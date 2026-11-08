@@ -252,7 +252,7 @@ exec zsh
 | `just claude` | Lier la config Claude Code (CLAUDE.md, RTK.md, agents, skills, config rtk) et fusionner les réglages de base | ✓ | |
 | `just doctor-server` | Vérifier le shell | ✓ | ✓ |
 | `just doctor-dev` | Vérifier toute la machine de dev (lance aussi `doctor-server`) | ✓ | |
-| `just test` | Lancer les tests des scripts tmux (`tmux/*.test.sh`) sur un serveur tmux isolé | ✓ | |
+| `just test` | Lancer les tests des scripts tmux (`tmux/*.test.sh`) sur un serveur tmux isolé, et les tests des hooks Claude (`claude/hooks/*.test.sh`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
 
 ## Shell
@@ -291,7 +291,7 @@ tmux se résume à deux notions : la session (en général un projet) et l'ongle
 
 `Ctrl+A` puis `n` ouvre les notes libres du projet dans un popup (micro en thème Cobalt2, `micro/colorschemes/cobalt2.micro`, lié par `just tmux` ; raccourcis à la VS Code : `Ctrl+S` sauve, `Ctrl+Q` ferme, `Ctrl+C` copie la sélection dans le presse-papiers du poste (OSC 52), sauvegarde automatique, historique `Ctrl+Z` conservé après fermeture). Le fichier est `~/notes/<projet>.md`, hors des repos ; le projet est le dossier de la racine git du pane courant, créé avec un titre au premier usage (`tmux/notes.sh`). `~/notes` est un dépôt git : l'ouverture fait un pull, chaque fermeture commite puis pousse vers le dépôt GitHub privé `notes` créé par `just notes`. Les commits sont signés `notes <notes@localhost>`, une adresse inconnue de GitHub : ils ne gonflent pas le graphe de contributions du profil. En cas de conflit ou d'échec, un message tmux le signale : demander à Claude de synchroniser `~/notes`. Cette touche remplace le `next-window` natif de tmux : `Alt+1` … `Alt+9` changent d'onglet.
 
-La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les onglets, chacun nommé d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de l'onglet colore son onglet en rose ; `claude/settings.json` règle `preferredNotifChannel` sur `terminal_bell` pour que Claude sonne quand il a fini ou attend une réponse. `Alt+1` … `Alt+9` changent d'onglet sans préfixe, et `Alt+&` … `Alt+ç` (la rangée de chiffres AZERTY) font de même.
+La barre d'état tient sur deux lignes, en couleurs Cobalt2 comme Tabby : la première liste les sessions (la courante en jaune), la seconde les onglets, chacun nommé d'après le titre de son pane Claude. Une cloche dans n'importe quel pane de l'onglet colore son onglet en rose ; Claude sonne via `claude/hooks/ring-bell.sh` dès qu'il termine un tour (pas tant que des tâches en arrière-plan ou des réveils programmés sont en attente : il sonne quand il a vraiment fini), quand un tour échoue, et quand il attend une réponse (permission, question) ; `preferredNotifChannel` vaut `notifications_disabled` dans `claude/settings.json`, donc la cloche intégrée d'inactivité, en retard de 60 s et aveugle aux shells en arrière-plan, ne sonne jamais. `Alt+1` … `Alt+9` changent d'onglet sans préfixe, et `Alt+&` … `Alt+ç` (la rangée de chiffres AZERTY) font de même.
 
 `Ctrl+A` puis `Ctrl+K` ouvre une palette de commandes (fzf dans un popup) : les actions de `tmux/palette.tsv` (libellé, raccourci, commande tmux ; une action = une ligne), `Entrée` lance la commande sur le pane d'où la palette a été ouverte, `Échap` ferme (`tmux/command-palette.sh`).
 
