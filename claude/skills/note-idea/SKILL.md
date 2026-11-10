@@ -51,6 +51,8 @@ Every line carries information the user needs to pick the idea up again cold: th
 
 Before adding, read the file: when the idea is already there, show that entry and ask the user before changing it, instead of writing a second one. Never edit, reorder or delete another entry.
 
+A `## Tracker` section means the project has a ticket tracker (its URL is in that section): still write the idea in the notes file, which stays the place for quick capture, and leave the `## Tracker` section as it is. Before adding, check the tracker for a ticket on the same subject: when one exists, show it and ask the user instead of writing a duplicate. The idea becomes a ticket when someone starts working on it (global `CLAUDE.md`, Project Notes).
+
 ## 4. Commit and push
 
 If `~/notes` is a git repo:
