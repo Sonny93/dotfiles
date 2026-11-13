@@ -12,12 +12,10 @@ default: help
 help:
     @just --list --unsorted
 
-# Set up or update a dev machine (the XPS included)
+# Set up or update a dev machine
 dev: system build-deps shell mise tmux git gh-auth notes claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
-
-alias xps := dev
 
 # Set up or update a server
 server: system shell doctor-server

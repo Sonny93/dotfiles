@@ -2,28 +2,23 @@
 
 Français : [docs/fr/README.md](docs/fr/README.md)
 
-zsh, git, mise, tmux, Starship and Tabby, split by machine: Windows 11, XPS, dev machine and server.
+zsh, git, mise, tmux and Starship, split by machine: dev machine and server.
 
 | Machine | Contents | Check with |
 |---|---|---|
-| **Windows 11** | Tabby + Bitwarden (SSH agent) + `~/.ssh/config`: you connect to the other machines from here | Tabby opens the default connection |
-| **XPS** (CachyOS, Arch based) | Everything the dev machine has + Tabby + Bitwarden (SSH agent) + `~/.ssh/config` | `just doctor-dev` + Tabby opens the default connection |
-| **Dev machine** (Debian) | Shell + every mise tool + git + `gh` + Claude Code config | `just doctor-dev` |
+| **Dev machine** (Debian or Arch based, for example CachyOS) | Shell + every mise tool + git + `gh` + Claude Code config. A desktop machine gets Bitwarden (SSH agent), Tabby and the desktop apps from a separate private repo | `just doctor-dev` |
 | **Server / VPS** (Debian) | Shell only. No private key, no GitHub account, nothing to steal | `just doctor-server` |
 
 ## Contents
 
 - [Where things live](#where-things-live)
 - [Once only: the SSH key](#once-only-the-ssh-key)
-- [Windows 11](#windows-11)
 - [Dev machine](#dev-machine)
   - [Managing servers from the dev machine](#managing-servers-from-the-dev-machine)
-- [XPS](#xps)
 - [Server / VPS](#server--vps)
 - [Add a connection](#add-a-connection)
 - [Commands](#commands)
 - [Shell](#shell)
-- [Tabby](#tabby)
 - [tmux](#tmux)
 - [Claude Code](#claude-code)
 - [Security](#security)
@@ -33,11 +28,10 @@ zsh, git, mise, tmux, Starship and Tabby, split by machine: Windows 11, XPS, dev
 
 | What | Where | In the repo |
 |---|---|---|
-| Private SSH key | Bitwarden, served by its SSH agent on Windows 11 and the XPS | Never |
-| SSH connections | `~/.ssh/config` on Windows 11 and the XPS, copy in a Bitwarden note | Never |
-| Tabby settings (theme, font, shortcuts) | `tabby/config.yaml` | Yes |
+| Private SSH key | Bitwarden, served by its SSH agent on your local machines (the ones running Bitwarden) | Never |
+| SSH connections | `~/.ssh/config` on your local machines, copy in a Bitwarden note | Never |
 | Git identity | Each repo (`.git/config`), or `~/.gitconfig.local` as an option | Never |
-| GitHub access | `gh` token on each dev machine (the XPS included) | Never |
+| GitHub access | `gh` token on each dev machine (local machines included) | Never |
 | Claude Code config (CLAUDE.md, RTK.md, agents, skills, base settings) | `claude/` | Yes |
 | Claude Code credentials, MCP tokens, memory, history | `~/.claude/` and `~/.claude.json` on each dev machine | Never |
 
@@ -58,46 +52,19 @@ The repo is public: it is cloned over HTTPS, with no key or account.
        ServerAliveCountMax 10
    ```
 
-   No `IdentityFile`: `ssh` and Tabby ask the Bitwarden agent for the key.
-
-## Windows 11
-
-1. Install **Bitwarden Desktop**, sign in, then enable the **SSH agent** in the settings.
-2. Turn off the Windows SSH agent, which conflicts with Bitwarden's (PowerShell **admin**):
-
-   ```powershell
-   Stop-Service ssh-agent
-   Set-Service ssh-agent -StartupType Disabled
-   ```
-
-3. Create `C:\Users\<user>\.ssh\config` (no extension) with the content of the **ssh config** note.
-4. Tabby looks for this file through the `HOME` variable, which is not set by default on Windows:
-
-   ```powershell
-   [Environment]::SetEnvironmentVariable("HOME", $env:USERPROFILE, "User")
-   ```
-
-5. Install **Tabby**, launch it once, close it completely (taskbar icon included), then, from Windows Terminal (not from Tabby):
-
-   ```powershell
-   irm https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/install.ps1 | iex
-   ```
-
-6. Verify: `ssh-add -L` shows the Bitwarden key, and Tabby opens the chosen connection at launch.
-
-To update: see [Tabby](#tabby).
+   No `IdentityFile`: `ssh` asks the Bitwarden agent for the key.
 
 ## Dev machine
 
 ### Install
 
-1. Base packages. On Debian (dev machine):
+1. Base packages. On Debian:
 
    ```sh
    sudo apt install git curl zsh
    ```
 
-   On Arch (XPS):
+   On Arch (CachyOS for example):
 
    ```sh
    sudo pacman -S --needed git curl zsh
@@ -132,9 +99,9 @@ To update: see [Tabby](#tabby).
 
 ### Managing servers from the dev machine
 
-To chain Windows 11 or XPS → dev machine → server (for example Claude Code on the dev machine working on a VPS), the dev machine borrows the client's Bitwarden agent instead of having its own key:
+To chain local machine → remote dev machine → server (for example Claude Code on the dev machine working on a VPS), the remote dev machine borrows the client's Bitwarden agent instead of having its own key:
 
-1. In the **ssh config** note and in `~/.ssh/config` on Windows 11 and the XPS, enable agent forwarding on the dev machine's `Host`, and on that one only:
+1. In the **ssh config** note and in `~/.ssh/config` on your local machines, enable agent forwarding on the dev machine's `Host`, and on that one only:
 
    ```
    Host ma-machine-de-dev
@@ -153,51 +120,13 @@ cd ~/dotfiles && git pull && just dev
 exec zsh
 ```
 
-## XPS
-
-The XPS is both a dev machine and a client.
-
-1. Install as a [Dev machine](#dev-machine), running `just xps` (alias of `just dev`) at step 4.
-2. Install **Bitwarden Desktop** as a `.deb` (not Flatpak or Snap: the SSH agent does not create its socket there), sign in, enable the **SSH agent**. Then announce it to the whole graphical session (Tabby included), and log out / log back in:
-
-   ```sh
-   mkdir -p ~/.config/environment.d
-   echo 'SSH_AUTH_SOCK=${HOME}/.bitwarden-ssh-agent.sock' > ~/.config/environment.d/bitwarden-ssh-agent.conf
-   ```
-
-3. Create `~/.ssh/config` with the content of the **ssh config** note.
-4. Install **Tabby**, launch it once, close it completely, then from another terminal:
-
-   ```sh
-   bash ~/dotfiles/tabby/install.sh
-   ```
-
-5. On KDE Plasma Wayland, Tabby's global shortcut (`Ctrl+Shift+Space`, show / hide) goes through the global shortcuts portal, which Electron only uses with a flag. Add that flag to Tabby's launcher:
-
-   ```sh
-   sed 's|^Exec=/opt/Tabby/tabby|& --enable-features=GlobalShortcutsPortal|' /usr/share/applications/tabby.desktop > ~/.local/share/applications/tabby.desktop
-   ```
-
-   Relaunch Tabby from the launcher, then in **System Settings → Keyboard → Shortcuts → org.chromium.Chromium**, assign `Ctrl+Shift+Space` to "Electron shortcut Ctrl+Shift+Space" (once only, KDE remembers it). The `hacks.globalHotkey: false` in `tabby/config.yaml` forces Tabby to declare this shortcut, which it otherwise ignores on Plasma Wayland before 6.6.
-
-6. Verify: `ssh-add -L` shows the Bitwarden key, Tabby opens the chosen connection at launch, and `Ctrl+Shift+Space` shows / hides Tabby.
-
-### Update
-
-```sh
-cd ~/dotfiles && git pull && just xps
-exec zsh
-```
-
-Tabby: see [Tabby](#tabby).
-
 ## Server / VPS
 
 ### Install
 
 1. **Give the public key to the server.** It is the lock, not the key: it can be read safely.
    - New VPS: paste the public key (copied from Bitwarden) into the host's form.
-   - Existing server, from Windows 11 (PowerShell) or the XPS, with a password connection:
+   - Existing server, from a local machine, with a password connection:
 
      ```sh
      ssh-add -L | ssh user@host "umask 077; mkdir -p ~/.ssh && cat >> ~/.ssh/authorized_keys"
@@ -237,15 +166,15 @@ exec zsh
 ## Add a connection
 
 1. Give the public key to the server (see [Server / VPS](#server--vps)).
-2. Add the `Host` to the Bitwarden **ssh config** note, then to `~/.ssh/config` on Windows 11 and the XPS (and on the dev machine if it must reach this server). Tabby shows it at next launch.
+2. Add the `Host` to the Bitwarden **ssh config** note, then to `~/.ssh/config` on your local machines (and on the dev machine if it must reach this server).
 
 ## Commands
 
-`just` or `just help` lists the commands. Windows 11 uses none: Tabby goes through its script (see [Tabby](#tabby)).
+`just` or `just help` lists the commands.
 
-| Command | Purpose | Dev / XPS | Server |
+| Command | Purpose | Dev | Server |
 |---|---|---|---|
-| `just dev` (alias `just xps`) | Install / update a dev machine: `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
+| `just dev` | Install / update a dev machine: `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
 | `just server` | Install / update a server: `system`, `shell`, `doctor-server` | | ✓ |
 | `just system` | Update the system packages (apt or pacman) | ✓ | ✓ |
 | `just build-deps` | Install the system packages to build tmux (Debian: `build-essential`, `libncurses-dev`, `bison`; Arch: `base-devel`, `ncurses`, `bison`) | ✓ | |
@@ -263,27 +192,9 @@ exec zsh
 
 ## Shell
 
-zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). The `update` command updates the system (`apt` or `pacman`), then the tools (`mise upgrade`), then restarts idle Claude Code instances in tmux (`tmux/restart-claude.sh`). Keyboard shortcuts (Ctrl+arrows, Home/End, Delete…) come from Oh My Zsh's `key-bindings.zsh` file, loaded on its own through zinit: it also handles the sequences Tabby sends on Windows. Every tool comes from mise, with a single config for all machines.
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). The `update` command updates the system (`apt` or `pacman`), then the tools (`mise upgrade`), then restarts idle Claude Code instances in tmux (`tmux/restart-claude.sh`). Keyboard shortcuts (Ctrl+arrows, Home/End, Delete…) come from Oh My Zsh's `key-bindings.zsh` file, loaded on its own through zinit. Every tool comes from mise, with a single config for all machines.
 
 Each machine gets a colored badge (emoji) computed from its hostname, shown in the tab title and in the prompt: no configuration. If two machines collide, rename one of them or add `export MACHINE_BADGE=🟢` to `~/.zshenv` on that machine.
-
-## Tabby
-
-`tabby/config.yaml` only contains what differs from Tabby's defaults. It is the reference: a setting is changed in the repo (commit + push), then reinstalled on Windows 11 and the XPS. A setting changed in Tabby's interface is lost at the next install.
-
-Install or update, with Tabby **closed**, from another terminal:
-
-- **Windows**: `irm https://raw.githubusercontent.com/Sonny93/dotfiles/main/tabby/install.ps1 | iex` (`tabby/install.ps1`)
-- **XPS**: `cd ~/dotfiles && git pull && bash tabby/install.sh` (`tabby/install.sh`)
-
-The script:
-
-1. backs up the local config (`config.backup-<date>.yaml`, next to it);
-2. replaces it with the repo's;
-3. keeps the already known hosts (no new fingerprint validation);
-4. keeps the default profile if it points to a `Host` of `~/.ssh/config`, otherwise asks which one to open at launch (a `Host` or the local shell).
-
-Connections do not go through the Tabby config: it reads them from `~/.ssh/config` and shows them as `mon-serveur (.ssh/config)`. Their shared settings come from `profileDefaults.ssh` in `tabby/config.yaml`: tab title sent by the remote shell (colored badge and machine name, then the current folder or command) and new tab / SFTP opened in the current folder. The `.zshrc` sends both at every prompt, no profile to edit by hand.
 
 ## tmux
 
@@ -297,7 +208,7 @@ tmux boils down to two notions: the session (usually a project) and the tab. `Al
 
 `Ctrl+A` then `n` opens the project's free-form notes in a popup (micro with the Cobalt2 theme, `micro/colorschemes/cobalt2.micro`, linked by `just tmux`; VS Code-style shortcuts: `Ctrl+S` saves, `Ctrl+Q` closes, `Ctrl+C` copies the selection to the workstation's clipboard (OSC 52), autosave, `Ctrl+Z` history kept after closing). The file is `~/notes/<project>.md`, outside the repos; the project is the git root folder of the current pane, created with a title on first use (`tmux/notes.sh`). `~/notes` is a git repo: opening does a pull, each close commits then pushes to the private GitHub repo `notes` created by `just notes`. Commits are signed `notes <notes@localhost>`, an address unknown to GitHub: they do not inflate the profile's contribution graph. On conflict or failure, a tmux message flags it: ask Claude to sync `~/notes`. This key replaces tmux's native `next-window`: `Alt+1` … `Alt+9` switch tabs.
 
-The status bar spans two lines, in Cobalt2 colors like Tabby: the first lists the sessions (the current one in yellow), the second the tabs, each named after the title of its Claude pane. A bell in any pane of the tab turns its tab pink; `claude/settings.json` sets `preferredNotifChannel` to `terminal_bell` so Claude rings when it has finished or is waiting for an answer. `Alt+1` … `Alt+9` switch tabs without the prefix, and so do `Alt+&` … `Alt+ç` (the AZERTY number row).
+The status bar spans two lines, in Cobalt2 colors: the first lists the sessions (the current one in yellow), the second the tabs, each named after the title of its Claude pane. A bell in any pane of the tab turns its tab pink; `claude/settings.json` sets `preferredNotifChannel` to `terminal_bell` so Claude rings when it has finished or is waiting for an answer. `Alt+1` … `Alt+9` switch tabs without the prefix, and so do `Alt+&` … `Alt+ç` (the AZERTY number row).
 
 `Ctrl+A` then `Ctrl+K` opens a command palette (fzf in a popup): the actions of `tmux/palette.tsv` (label, shortcut, tmux command; one action = one line), `Enter` runs the command on the pane the palette was opened from, `Esc` closes (`tmux/command-palette.sh`).
 
@@ -329,10 +240,10 @@ Before replacing anything, `just claude` moves what exists to `~/.claude/backups
 
 The repo is public and **never** contains a secret, an identity or server info:
 
-- **SSH key**: only in Bitwarden, on Windows 11 and the XPS. Locked vault = no connection possible. A lost machine = sign out of Bitwarden on it.
-- **Connections**: in Bitwarden and in `~/.ssh/config` on Windows 11 and the XPS, never in the repo.
+- **SSH key**: only in Bitwarden, on your local machines. Locked vault = no connection possible. A lost machine = sign out of Bitwarden on it.
+- **Connections**: in Bitwarden and in `~/.ssh/config` on your local machines, never in the repo.
 - **Git identity**: set in each repo. `.gitconfig` also includes `~/.gitconfig.local`, optional and specific to each machine, for a default identity.
-- **GitHub**: `gh` token on dev machines only (the XPS included). It goes into the system keyring if there is one, otherwise in plain text in `~/.config/gh/hosts.yml`. No SSH key for GitHub: `.gitconfig` rewrites `git@github.com:` remotes to HTTPS, so repos cloned over SSH also go through `gh`, without changing their remote.
+- **GitHub**: `gh` token on dev machines only (local machines included). It goes into the system keyring if there is one, otherwise in plain text in `~/.config/gh/hosts.yml`. No SSH key for GitHub: `.gitconfig` rewrites `git@github.com:` remotes to HTTPS, so repos cloned over SSH also go through `gh`, without changing their remote.
 - **gitleaks** runs as a pre-commit hook (`githooks/pre-commit`, enabled by `just git`) and blocks any secret trying to get in. The same hook lints staged shell scripts with shellcheck.
 
 ## MOTD

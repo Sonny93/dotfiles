@@ -1,4 +1,4 @@
-# Cobalt2 palette of tabby/config.yaml and tmux/tmux.conf, used by micro through tmux/notes.sh.
+# Cobalt2 palette of tmux/tmux.conf, used by micro through tmux/notes.sh.
 # Linked to ~/.config/micro/colorschemes/ by `just tmux`.
 color-link default "#ffffff,#132738"
 color-link cursor-line "#1f4662"
