@@ -55,7 +55,7 @@ Depuis l'extérieur : `t` rattache la dernière session (ou ouvre le sélecteur 
 
 | Touche | Effet |
 |---|---|
-| `h` | Cette fiche (`q` pour fermer) |
+| `Alt+h` | Cette fiche, sans préfixe (`q` pour fermer) |
 | `?` | Tous les raccourcis |
 
 ## Repères
@@ -64,7 +64,7 @@ Depuis l'extérieur : `t` rattache la dernière session (ou ouvre le sélecteur 
 - **Window** = un onglet.
 - **Pane** = une window découpée en plusieurs zones.
 
-**Barre du haut** : ligne 1 = les sessions (la courante en jaune), ligne 2 = les onglets. Chaque onglet affiche le titre du pane Claude, plus le dossier s'il diffère de celui de la session. Un onglet rose = une cloche (Claude a fini ou attend). À droite, `^A h` rappelle cette fiche.
+**Barre du haut** : ligne 1 = les sessions (la courante en jaune), ligne 2 = les onglets. Chaque onglet affiche le titre du pane Claude, plus le dossier s'il diffère de celui de la session. Un onglet rose = une cloche (Claude a fini ou attend). À droite, `Alt+h` rappelle cette fiche.
 
 **Claude + shells** (menu Nouvel onglet, `Alt+n`) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.
 
