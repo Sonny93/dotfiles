@@ -1,6 +1,8 @@
 [tools]
+bat = "latest"
 bun = "latest"
 claude = "latest"
+delta = "latest"
 fastfetch = "latest"
 fzf = "latest"
 gh = "latest"
@@ -22,6 +24,7 @@ shellcheck = "latest"
 starship = "latest"
 uv = "latest"
 "asdf:mise-plugins/mise-tmux" = "latest"
+"aqua:dlvhdr/diffnav" = "latest"
 yarn = "1"
 
 [settings]
