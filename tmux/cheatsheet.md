@@ -43,6 +43,32 @@ Depuis l'extérieur : `t` rattache la dernière session (ou ouvre le sélecteur 
 |---|---|
 | `n` | Notes du projet (popup micro, `Ctrl+S` sauver, `Ctrl+Q` fermer, `Ctrl+C` copier la sélection, fichier `~/notes/<projet>.md`, sauvegardé et versionné automatiquement) |
 
+## Code
+
+Lecture seule : rien ne modifie le dépôt.
+
+| Touche | Effet |
+|---|---|
+| `Alt+g` | Menu Code (sans préfixe) : `d` diff du travail en cours, `f` fichiers du repo, `Échap` annule |
+
+Diff en cours (diffnav, se rafraîchit tout seul, fichiers neufs inclus) :
+
+| Touche | Effet |
+|---|---|
+| `j` / `k` ou flèches | Nœud suivant / précédent dans l'arborescence |
+| `n` / `p` | Fichier suivant / précédent |
+| `Tab` | Passer de l'arborescence au diff |
+| `Ctrl+d` / `Ctrl+u` | Défiler le diff d'une demi-page |
+| `s` | Côte à côte / unifié |
+| `e` | Masquer / afficher l'arborescence |
+| `o` | Ouvrir le fichier en plein écran, lecture seule (`q` pour revenir) |
+| `?` | Aide |
+| `q` | Fermer |
+
+Fichiers du repo (fzf + bat) : on tape pour filtrer, `Entrée` ouvre le fichier en plein écran (`q` pour revenir à la liste), `Échap` ferme.
+
+Dans un shell, `git diff`, `git show` et `git log -p` sont rendus par delta (couleurs, numéros de ligne) ; `n` / `N` sautent au fichier suivant / précédent.
+
 ## Défilement et copie
 
 | Action | Effet |
