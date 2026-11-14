@@ -1,0 +1,212 @@
+#!/usr/bin/env bash
+# Tests of statusline.sh: pace coloring of the 5h and 7d usages and the quota log.
+# Usage: statusline.test.sh
+#   prints `ok <name>` or `FAIL <name>: <detail>` per test and a summary line; exits 1 when a test failed
+# Isolation: every test runs in a mktemp -d sandbox with HOME and XDG_STATE_HOME inside it, removed afterwards.
+
+set -uo pipefail
+
+CLAUDE_DIRECTORY="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly CLAUDE_DIRECTORY
+readonly SCRIPT="$CLAUDE_DIRECTORY/statusline.sh"
+readonly RED_ANCHOR=$'\033[1;38;2;230;70;70m'
+readonly GREEN_ANCHOR=$'\033[1;38;2;80;200;80m'
+readonly BOLD_GREEN=$'\033[1;32m'
+readonly BOLD_YELLOW=$'\033[1;33m'
+readonly BOLD_RED=$'\033[1;31m'
+readonly FIVE_HOUR_SECONDS=18000
+readonly SEVEN_DAY_SECONDS=604800
+readonly SECONDS_PER_MINUTE=60
+readonly SECONDS_PER_DAY=86400
+
+passed_count=0
+failed_count=0
+
+new_sandbox() {
+    SANDBOX=$(mktemp -d)
+    export HOME="$SANDBOX/home"
+    export XDG_STATE_HOME="$SANDBOX/state"
+    unset COLUMNS
+    mkdir -p "$HOME"
+    cd "$SANDBOX" || exit 1
+    LOG_FILE="$XDG_STATE_HOME/claude/quota-usage.tsv"
+}
+
+run_test() {
+    local test_name="$1" output
+    new_sandbox
+    output=$("$test_name" 2>&1)
+    if [[ -z "$output" ]]; then
+        echo "ok $test_name"
+        passed_count=$((passed_count + 1))
+    else
+        echo "FAIL $test_name: $output"
+        failed_count=$((failed_count + 1))
+    fi
+    cd / && rm -rf "$SANDBOX"
+}
+
+quota_json() {
+    local five_hour_percentage="$1" five_hour_remaining="$2" seven_day_percentage="$3" seven_day_remaining="$4"
+    local now="$EPOCHSECONDS"
+    jq -n \
+        --argjson five_hour_percentage "$five_hour_percentage" \
+        --argjson five_hour_resets_at "$((now + five_hour_remaining))" \
+        --argjson seven_day_percentage "$seven_day_percentage" \
+        --argjson seven_day_resets_at "$((now + seven_day_remaining))" \
+        '{rate_limits: {
+            five_hour: {used_percentage: $five_hour_percentage, resets_at: $five_hour_resets_at},
+            seven_day: {used_percentage: $seven_day_percentage, resets_at: $seven_day_resets_at}}}'
+}
+
+fixed_quota_json() {
+    jq -n --arg five_percentage "$1" --arg five_resets_at "$2" --arg seven_percentage "$3" --arg seven_resets_at "$4" '
+        def window($percentage; $resets_at):
+            if $percentage == "" then {} else {used_percentage: ($percentage | tonumber), resets_at: ($resets_at | tonumber)} end;
+        {rate_limits: (
+            (if $five_percentage == "" then {} else {five_hour: window($five_percentage; $five_resets_at)} end)
+            + (if $seven_percentage == "" then {} else {seven_day: window($seven_percentage; $seven_resets_at)} end))}'
+}
+
+render() {
+    "$SCRIPT" <<<"$1"
+}
+
+assert_contains() {
+    [[ "$1" == *"$2"* ]] || echo "expected output to contain [$2], got [$(cat -v <<<"$1")]"
+}
+
+assert_not_contains() {
+    [[ "$1" != *"$2"* ]] || echo "expected output not to contain [$2], got [$(cat -v <<<"$1")]"
+}
+
+assert_line_count() {
+    local actual
+    actual=$(wc -l <"$LOG_FILE")
+    [[ "$actual" -eq "$1" ]] || echo "expected $1 log lines, got $actual"
+}
+
+should_color_red_with_a_plus_gap_when_usage_is_far_ahead_of_the_five_hour_window() {
+    local output
+    output=$(render "$(quota_json 40 "$((FIVE_HOUR_SECONDS - 30 * SECONDS_PER_MINUTE))" 1 "$SEVEN_DAY_SECONDS")")
+    assert_contains "$output" "${RED_ANCHOR}40% +30"
+}
+
+should_color_green_without_a_gap_when_usage_is_behind_the_five_hour_window() {
+    local output
+    output=$(render "$(quota_json 90 "$((10 * SECONDS_PER_MINUTE))" 1 "$SEVEN_DAY_SECONDS")")
+    assert_contains "$output" "${GREEN_ANCHOR}90%"
+    assert_not_contains "$output" "90% +"
+}
+
+should_color_red_with_a_plus_gap_when_usage_is_far_ahead_of_the_seven_day_window() {
+    local output
+    output=$(render "$(quota_json 1 "$FIVE_HOUR_SECONDS" 60 "$((SEVEN_DAY_SECONDS - 2 * SECONDS_PER_DAY))")")
+    assert_contains "$output" "${RED_ANCHOR}60% +32"
+}
+
+should_blend_toward_yellow_when_the_gap_is_between_tolerance_and_midpoint() {
+    local output
+    output=$(render "$(quota_json 30 "$((FIVE_HOUR_SECONDS - 60 * SECONDS_PER_MINUTE))" 1 "$SEVEN_DAY_SECONDS")")
+    assert_contains "$output" $'\033[1;38;2;155;200;70m30% +10'
+}
+
+should_use_the_absolute_color_when_resets_at_is_missing() {
+    local output
+    output=$(render '{"rate_limits":{"five_hour":{"used_percentage":30},"seven_day":{"used_percentage":60}}}')
+    assert_contains "$output" "${BOLD_GREEN}30%"
+    assert_contains "$output" "${BOLD_YELLOW}60%"
+    assert_not_contains "$output" " +"
+}
+
+should_use_the_absolute_red_color_when_resets_at_is_missing_and_usage_is_high() {
+    local output
+    output=$(render '{"rate_limits":{"five_hour":{"used_percentage":85}}}')
+    assert_contains "$output" "${BOLD_RED}85%"
+}
+
+last_log_fields() {
+    tail -n 1 "$LOG_FILE" | cut -f2-
+}
+
+assert_last_log_fields() {
+    local actual
+    actual=$(last_log_fields)
+    [[ "$actual" == "$1" ]] || echo "expected last log fields [$1], got [$actual]"
+}
+
+should_create_the_log_with_a_header_and_one_line_on_first_quota_values() {
+    render "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    [[ "$(head -n 1 "$LOG_FILE")" == "# epoch_seconds"$'\t'"five_hour_used_percentage"* ]] || echo "missing header"
+    assert_line_count 2
+}
+
+should_not_append_a_line_when_the_quota_values_are_unchanged() {
+    local input
+    input=$(fixed_quota_json 40 1000 10 5000)
+    render "$input" >/dev/null
+    render "$input" >/dev/null
+    assert_line_count 2
+}
+
+should_append_a_line_when_a_quota_value_increases() {
+    render "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    render "$(fixed_quota_json 41 1000 10 5000)" >/dev/null
+    assert_line_count 3
+}
+
+should_log_the_raw_used_percentage() {
+    render "$(fixed_quota_json 40.7 1000 10 5000)" >/dev/null
+    assert_last_log_fields $'40.7\t1000\t10\t5000'
+}
+
+should_not_append_a_line_when_a_session_reports_a_lower_percentage_for_the_same_reset() {
+    render "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    render "$(fixed_quota_json 26 1000 10 5000)" >/dev/null
+    assert_line_count 2
+}
+
+should_not_append_a_line_when_a_session_reports_an_older_resets_at() {
+    render "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    render "$(fixed_quota_json 90 900 10 5000)" >/dev/null
+    assert_line_count 2
+}
+
+should_carry_forward_the_five_hour_values_when_only_the_seven_day_window_advances() {
+    render "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    render "$(fixed_quota_json "" "" 11 5000)" >/dev/null
+    assert_last_log_fields $'40\t1000\t11\t5000'
+}
+
+should_not_append_a_line_when_the_input_only_has_a_seven_day_window_that_did_not_advance() {
+    render "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    render "$(fixed_quota_json "" "" 10 5000)" >/dev/null
+    assert_line_count 2
+}
+
+should_append_a_line_with_the_new_reset_when_the_window_resets() {
+    render "$(fixed_quota_json 90 1000 10 5000)" >/dev/null
+    render "$(fixed_quota_json 3 19000 10 5000)" >/dev/null
+    assert_last_log_fields $'3\t19000\t10\t5000'
+}
+
+should_not_create_the_log_when_the_input_has_no_rate_limits() {
+    render '{"model":{"display_name":"Opus"}}' >/dev/null
+    [[ ! -e "$LOG_FILE" ]] || echo "expected no log file"
+}
+
+should_still_print_the_usage_segment_when_the_log_location_is_unwritable() {
+    local output
+    : >"$SANDBOX/not-a-directory"
+    export XDG_STATE_HOME="$SANDBOX/not-a-directory"
+    output=$(render "$(fixed_quota_json 40 1000 10 5000)" 2>&1)
+    assert_contains "$output" "[5h"
+    assert_contains "$output" "40%"
+}
+
+for test_name in $(declare -F | awk '{print $3}' | grep '^should_'); do
+    run_test "$test_name"
+done
+
+echo "$passed_count passed, $failed_count failed"
+[[ "$failed_count" -eq 0 ]]

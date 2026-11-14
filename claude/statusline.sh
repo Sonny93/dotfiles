@@ -4,7 +4,10 @@
 # Line one mirrors the Starship prompt (machine badge, directory, git branch and
 # status, user@host, time), then the session name.
 # Line two shows the model, duration, the transcript size on disk, and the context
-# (against the auto-compact window), 5h and 7d usages.
+# (against the auto-compact window), 5h and 7d usages. The 5h and 7d usages are
+# colored by pace (usage against the elapsed share of the window, with " +N" points
+# when ahead of it). The newest known quota state, merged across sessions, is logged
+# whenever it moves forward to ${XDG_STATE_HOME:-$HOME/.local/state}/claude/quota-usage.tsv.
 
 shopt -s extglob
 
@@ -104,6 +107,14 @@ TOKENS_PER_MILLION=1000000
 SECONDS_PER_DAY=86400
 UNMEASURED_CONTEXT_SYMBOL='~'
 CONTEXT_WINDOW_PREFIX="context_window"
+FIVE_HOUR_WINDOW_SECONDS=18000
+SEVEN_DAY_WINDOW_SECONDS=604800
+PACE_TOLERANCE_POINTS=5
+PACE_DANGER_POINTS=25
+PACE_MIDPOINT_POINTS=$(((PACE_TOLERANCE_POINTS + PACE_DANGER_POINTS) / 2))
+PACE_GREEN_ANCHOR="80;200;80"
+PACE_YELLOW_ANCHOR="230;200;60"
+PACE_RED_ANCHOR="230;70;70"
 
 usage_color() {
   local percentage="$1"
@@ -114,6 +125,39 @@ usage_color() {
   else
     printf '%s' "$GREEN_BOLD"
   fi
+}
+
+elapsed_percentage() {
+  local window_seconds="$1" resets_at="$2" elapsed
+  elapsed=$(((window_seconds - (resets_at - EPOCHSECONDS)) * PERCENT_MULTIPLIER / window_seconds))
+  [ "$elapsed" -lt 0 ] && elapsed=0
+  [ "$elapsed" -gt "$PERCENT_MULTIPLIER" ] && elapsed="$PERCENT_MULTIPLIER"
+  printf '%s' "$elapsed"
+}
+
+blend_anchors() {
+  local from_anchor="$1" to_anchor="$2" step="$3" span="$4"
+  local from_channels to_channels index blended=()
+  IFS=';' read -ra from_channels <<< "$from_anchor"
+  IFS=';' read -ra to_channels <<< "$to_anchor"
+  for index in 0 1 2; do
+    blended+=("$((from_channels[index] + (to_channels[index] - from_channels[index]) * step / span))")
+  done
+  printf '%s;%s;%s' "${blended[@]}"
+}
+
+pace_color() {
+  local gap="$1" channels
+  if [ "$gap" -le "$PACE_TOLERANCE_POINTS" ]; then
+    channels="$PACE_GREEN_ANCHOR"
+  elif [ "$gap" -ge "$PACE_DANGER_POINTS" ]; then
+    channels="$PACE_RED_ANCHOR"
+  elif [ "$gap" -le "$PACE_MIDPOINT_POINTS" ]; then
+    channels=$(blend_anchors "$PACE_GREEN_ANCHOR" "$PACE_YELLOW_ANCHOR" "$((gap - PACE_TOLERANCE_POINTS))" "$((PACE_MIDPOINT_POINTS - PACE_TOLERANCE_POINTS))")
+  else
+    channels=$(blend_anchors "$PACE_YELLOW_ANCHOR" "$PACE_RED_ANCHOR" "$((gap - PACE_MIDPOINT_POINTS))" "$((PACE_DANGER_POINTS - PACE_MIDPOINT_POINTS))")
+  fi
+  printf '\033[1;38;2;%sm' "$channels"
 }
 
 relative_day() {
@@ -172,8 +216,22 @@ render_unmeasured_context() {
   printf '%s' "]${RESET}"
 }
 
+render_percentage() {
+  local prefix="$1" percentage="$2" window_seconds="$3"
+  local resets_at_name="${prefix}_resets_at" resets_at gap
+  resets_at="${!resets_at_name}"
+  if [ -z "$window_seconds" ] || [[ ! "$resets_at" =~ ^[0-9]+$ ]]; then
+    printf '%s' "$(usage_color "$percentage")${percentage}%${RESET}"
+    return 0
+  fi
+  gap=$((percentage - $(elapsed_percentage "$window_seconds" "$resets_at")))
+  printf '%s' "$(pace_color "$gap")${percentage}%"
+  [ "$gap" -gt "$PACE_TOLERANCE_POINTS" ] && printf ' +%s' "$gap"
+  printf '%s' "$RESET"
+}
+
 render_usage() {
-  local label="$1" prefix="$2" reset_format="$3"
+  local label="$1" prefix="$2" reset_format="$3" window_seconds="$4"
   local percentage_name="${prefix}_used_percentage"
   local percentage="${!percentage_name}"
   if is_unmeasured_context "$prefix"; then
@@ -182,7 +240,7 @@ render_usage() {
   fi
   [ -z "$percentage" ] && return 0
 
-  printf '%s' "${GRAY}[${label}${RESET} $(usage_color "$percentage")${percentage}%${RESET}"
+  printf '%s' "${GRAY}[${label}${RESET} $(render_percentage "$prefix" "$percentage" "$window_seconds")"
   render_tokens "$prefix"
   render_reset "$prefix" "$reset_format"
   printf '%s' "${GRAY}]${RESET}"
@@ -190,13 +248,13 @@ render_usage() {
 
 render_usages() {
   local usages=()
-  local window label prefix reset_format usage
+  local window label prefix reset_format window_seconds usage
   for window in \
-    "ctx|${CONTEXT_WINDOW_PREFIX}|" \
-    "5h|rate_limits_five_hour|%H:%M" \
-    "7d|rate_limits_seven_day|%a %Hh"; do
-    IFS='|' read -r label prefix reset_format <<< "$window"
-    usage=$(render_usage "$label" "$prefix" "$reset_format")
+    "ctx|${CONTEXT_WINDOW_PREFIX}||" \
+    "5h|rate_limits_five_hour|%H:%M|${FIVE_HOUR_WINDOW_SECONDS}" \
+    "7d|rate_limits_seven_day|%a %Hh|${SEVEN_DAY_WINDOW_SECONDS}"; do
+    IFS='|' read -r label prefix reset_format window_seconds <<< "$window"
+    usage=$(render_usage "$label" "$prefix" "$reset_format" "$window_seconds")
     [ -n "$usage" ] && usages+=("$usage")
   done
   printf '%s' "${usages[*]}"
@@ -263,7 +321,9 @@ SESSION_FIELDS_FILTER='
     rate_limits_five_hour_used_percentage: (.rate_limits.five_hour.used_percentage | whole),
     rate_limits_five_hour_resets_at: .rate_limits.five_hour.resets_at,
     rate_limits_seven_day_used_percentage: (.rate_limits.seven_day.used_percentage | whole),
-    rate_limits_seven_day_resets_at: .rate_limits.seven_day.resets_at
+    rate_limits_seven_day_resets_at: .rate_limits.seven_day.resets_at,
+    quota_five_hour_used_percentage: .rate_limits.five_hour.used_percentage,
+    quota_seven_day_used_percentage: .rate_limits.seven_day.used_percentage
   } | to_entries[] | "\(.key)=\(.value // "" | tostring | @sh)"
 '
 
@@ -331,6 +391,75 @@ load_session_fields() {
     --argjson milliseconds_per_minute "$MILLISECONDS_PER_MINUTE" \
     "$SESSION_FIELDS_FILTER" <<< "$INPUT" 2>/dev/null)
   eval "$assignments"
+}
+
+QUOTA_LOG_DIRECTORY_MODE=700
+QUOTA_LOG_HEADER=$'# epoch_seconds\tfive_hour_used_percentage\tfive_hour_resets_at\tseven_day_used_percentage\tseven_day_resets_at'
+
+quota_log_file() {
+  printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/claude/quota-usage.tsv"
+}
+
+append_quota_log_line() {
+  local log_file="$1" fields="$2"
+  # shellcheck disable=SC2174
+  mkdir -p -m "$QUOTA_LOG_DIRECTORY_MODE" -- "${log_file%/*}" 2>/dev/null || return 0
+  [ -e "$log_file" ] || printf '%s\n' "$QUOTA_LOG_HEADER" 2>/dev/null >> "$log_file" || return 0
+  printf '%s\t%s\n' "$EPOCHSECONDS" "$fields" 2>/dev/null >> "$log_file" || return 0
+}
+
+# shellcheck disable=SC2016
+QUOTA_MERGE_PROGRAM='
+  function is_newer(current_percentage, current_resets_at, last_percentage, last_resets_at) {
+    if (current_resets_at == "" || current_percentage == "") return 0
+    if (last_resets_at == "") return 1
+    if (current_resets_at + 0 != last_resets_at + 0) return current_resets_at + 0 > last_resets_at + 0
+    return current_percentage + 0 > last_percentage + 0
+  }
+  BEGIN {
+    split(last_line, last, "\t")
+    if (is_newer(five_percentage, five_resets_at, last[2], last[3])) {
+      merged_five = five_percentage "\t" five_resets_at
+    } else {
+      merged_five = last[2] "\t" last[3]
+    }
+    if (is_newer(seven_percentage, seven_resets_at, last[4], last[5])) {
+      merged_seven = seven_percentage "\t" seven_resets_at
+    } else {
+      merged_seven = last[4] "\t" last[5]
+    }
+    if (merged_five "\t" merged_seven != last[2] "\t" last[3] "\t" last[4] "\t" last[5]) {
+      print merged_five "\t" merged_seven
+    }
+  }
+'
+
+last_quota_log_line() {
+  local last_line
+  last_line=$(tail -n 1 -- "$1" 2>/dev/null)
+  [[ "$last_line" == '#'* ]] && return 0
+  printf '%s' "$last_line"
+}
+
+merge_quota_state() {
+  local last_line="$1"
+  LC_ALL=C awk \
+    -v last_line="$last_line" \
+    -v five_percentage="$quota_five_hour_used_percentage" \
+    -v five_resets_at="$rate_limits_five_hour_resets_at" \
+    -v seven_percentage="$quota_seven_day_used_percentage" \
+    -v seven_resets_at="$rate_limits_seven_day_resets_at" \
+    "$QUOTA_MERGE_PROGRAM" 2>/dev/null
+}
+
+log_quota_usage() {
+  local log_file merged_fields
+  [ -z "${quota_five_hour_used_percentage}${quota_seven_day_used_percentage}" ] && return 0
+  log_file=$(quota_log_file)
+  merged_fields=$(merge_quota_state "$(last_quota_log_line "$log_file")") || return 0
+  [ -z "$merged_fields" ] && return 0
+  append_quota_log_line "$log_file" "$merged_fields"
+  return 0
 }
 
 emit_segment() {
@@ -452,6 +581,7 @@ print_wrapped_line() {
 }
 
 load_session_fields
+log_quota_usage
 
 render_line_one_segments | print_wrapped_line
 render_line_two_segments | print_wrapped_line
