@@ -65,6 +65,7 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 # Tooling
 
 - Context7 first for library, framework, SDK, API and CLI documentation, setup and configuration, without being asked, before reading `node_modules` or searching the web. If its tools are missing or only offer authentication, stop and ask the user to run `/mcp`; continue without it only when the user says so. A subagent reports it as a blocker instead.
+- UnoCSS projects (`uno.config.*`, `presetWind4`) look like Tailwind v4 but are not: take syntax from the UnoCSS docs (Context7 `/unocss/unocss`), never Tailwind's, and when using a utility or variant the project doesn't already use, check that it generates CSS (`createGenerator` with the project's presets), because UnoCSS drops unknown classes silently. Example: container queries are min-width only (`@[33rem]/name:`), `@max-[…]/name:` generates nothing.
 - `@minimalstuff/*` are the user's own libraries: `ui` in `~/dev/ui-minimalstuff`, `tooling` in `~/dev/tooling-minimalstuff`. For their API, read the README, stories and source there instead of Context7 or the built files in `node_modules`; when the consumer's installed version differs from the local repo, trust the `node_modules` types. Never work around them in a consumer project: change the library through the `minimalstuff-libs` skill (worktree + `link:`, release through CI).
 
 @RTK.md
