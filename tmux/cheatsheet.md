@@ -1,26 +1,8 @@
 # Fiche tmux
 
-- **Session** : survit à la déconnexion SSH, en général née d'un projet.
-- **Window** = un onglet.
-- **Pane** = une window découpée en plusieurs zones.
-
 **Préfixe** : appuyer sur `Ctrl+A`, relâcher, puis appuyer sur la touche.
 
 **Palette de commandes** : préfixe puis `Ctrl+K` liste toutes les actions avec leur raccourci. On tape pour filtrer, `Entrée` lance, `Échap` ferme.
-
-`t` : rattache la dernière session (aucune session : ouvre le sélecteur des projets ; dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant. `t <nom>` : session ou projet de ce nom (`Tab` complète), ou, s'il n'existe pas, dépôt GitHub à cloner dans `~/dev/<nom>` quand `gh` le connaît (cache rafraîchi en arrière-plan, le premier usage peut attendre quelques secondes ; dépôts archivés et forks masqués, organisations incluses, `~/notes` et `~/dotfiles` jamais proposés ; sans `gh`, aucun dépôt GitHub), sinon nouveau projet `~/dev/<nom>`. Une nouvelle session demande d'abord sa disposition : `Entrée` (Claude + shells), `w`, `c` ou `s`, `Échap` annule.
-
-**Claude + shells** (menu Nouvel onglet, `Alt+n`) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.
-
-```
-┌──────────┬────────┐
-│          │ shell  │
-│  claude  ├────────┤
-│          │ shell  │
-└──────────┴────────┘
-```
-
-**Barre du haut** : ligne 1 = les sessions (la courante en jaune), ligne 2 = les onglets. Chaque onglet affiche le titre du pane Claude, plus le dossier s'il diffère de celui de la session. Un onglet rose = une cloche (Claude a fini ou attend).
 
 ## Windows
 
@@ -75,3 +57,23 @@ Depuis l'extérieur : `t` rattache la dernière session (ou ouvre le sélecteur 
 |---|---|
 | `h` | Cette fiche (`q` pour fermer) |
 | `?` | Tous les raccourcis |
+
+## Repères
+
+- **Session** : survit à la déconnexion SSH, en général née d'un projet.
+- **Window** = un onglet.
+- **Pane** = une window découpée en plusieurs zones.
+
+**Barre du haut** : ligne 1 = les sessions (la courante en jaune), ligne 2 = les onglets. Chaque onglet affiche le titre du pane Claude, plus le dossier s'il diffère de celui de la session. Un onglet rose = une cloche (Claude a fini ou attend). À droite, `^A h` rappelle cette fiche.
+
+**Claude + shells** (menu Nouvel onglet, `Alt+n`) : une window de 3 panes, Claude à gauche, deux shells empilés à droite.
+
+```
+┌──────────┬────────┐
+│          │ shell  │
+│  claude  ├────────┤
+│          │ shell  │
+└──────────┴────────┘
+```
+
+`t` : rattache la dernière session (aucune session : ouvre le sélecteur des projets ; dans tmux, ouvre le sélecteur). `t .` : ouvre ou rattache la session du projet courant. `t <nom>` : session ou projet de ce nom (`Tab` complète), ou, s'il n'existe pas, dépôt GitHub à cloner dans `~/dev/<nom>` quand `gh` le connaît (cache rafraîchi en arrière-plan, le premier usage peut attendre quelques secondes ; dépôts archivés et forks masqués, organisations incluses, `~/notes` et `~/dotfiles` jamais proposés ; sans `gh`, aucun dépôt GitHub), sinon nouveau projet `~/dev/<nom>`. Une nouvelle session demande d'abord sa disposition : `Entrée` (Claude + shells), `w`, `c` ou `s`, `Échap` annule.
