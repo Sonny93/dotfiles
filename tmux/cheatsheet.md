@@ -49,7 +49,7 @@ Lecture seule : rien ne modifie le dépôt.
 
 | Touche | Effet |
 |---|---|
-| `Alt+g` | Menu Code (sans préfixe) : `d` diff du travail en cours, `f` fichiers du repo, `Échap` annule |
+| `Alt+g` | Menu Code (sans préfixe) : `d` diff du travail en cours, `f` fichiers du repo, `r` recherche dans le contenu, `c` commits, `Échap` annule |
 
 Diff en cours (diffnav, se rafraîchit tout seul, fichiers neufs inclus) :
 
@@ -66,6 +66,10 @@ Diff en cours (diffnav, se rafraîchit tout seul, fichiers neufs inclus) :
 | `q` | Fermer |
 
 Fichiers du repo (fzf + bat) : on tape pour filtrer, `Entrée` ouvre le fichier en plein écran (`q` pour revenir à la liste), `Échap` ferme.
+
+Recherche (ripgrep + fzf) : on tape pour chercher (expression régulière acceptée, insensible à la casse sauf si la saisie contient une majuscule), `Entrée` ouvre le fichier plein écran à la ligne trouvée (`q` pour revenir aux résultats), `Échap` ferme.
+
+Commits (fzf + delta) : on tape pour filtrer la liste, l'aperçu montre le message, les fichiers et le diff du commit (un merge est comparé à son premier parent), `Entrée` l'ouvre dans diffnav avec les mêmes touches que le diff en cours (`m` y affiche le message du commit, `q` le ferme), `q` pour revenir à la liste, `Échap` ferme.
 
 Dans un shell, `git diff`, `git show` et `git log -p` sont rendus par delta (couleurs, numéros de ligne) ; `n` / `N` sautent au fichier suivant / précédent.
 

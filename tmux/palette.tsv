@@ -8,6 +8,8 @@ Changer de session ou d'onglet (ou ouvrir/créer un projet)	^A s	display-popup -
 Notes du projet	^A n	display-popup -EE -w 80% -h 80% -d "#{pane_current_path}" "~/dotfiles/tmux/notes.sh"
 Code : diff du travail en cours (lecture seule)	Alt+g d	display-popup -EE -w 90% -h 90% -d "#{pane_current_path}" "~/dotfiles/tmux/code-diff.sh"
 Code : parcourir les fichiers du repo (lecture seule)	Alt+g f	display-popup -EE -w 90% -h 90% -d "#{pane_current_path}" "~/dotfiles/tmux/code-files.sh"
+Code : rechercher dans le contenu des fichiers (lecture seule)	Alt+g r	display-popup -EE -w 90% -h 90% -d "#{pane_current_path}" "~/dotfiles/tmux/code-search.sh"
+Code : parcourir les commits (lecture seule)	Alt+g c	display-popup -EE -w 90% -h 90% -d "#{pane_current_path}" "~/dotfiles/tmux/code-log.sh"
 Couper le pane côte à côte	^A %	split-window -h -c "#{pane_current_path}"
 Couper le pane l'un sur l'autre	^A "	split-window -v -c "#{pane_current_path}"
 Zoomer / dézoomer le pane	^A z	resize-pane -Z
