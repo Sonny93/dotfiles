@@ -22,6 +22,6 @@ Remettre la disposition Claude + shells		select-layout main-vertical
 Arborescence sessions et onglets		choose-tree -Zw
 Défiler / copier (mode copie)	^A [	copy-mode
 Se détacher	^A d	detach-client
-Afficher la fiche d'aide	^A h	display-popup -E -w 80% -h 80% "glow -p ~/dotfiles/tmux/cheatsheet.md || less ~/dotfiles/tmux/cheatsheet.md"
+Afficher la fiche d'aide	Alt+h	display-popup -E -w 80% -h 80% "glow -p ~/dotfiles/tmux/cheatsheet.md || less ~/dotfiles/tmux/cheatsheet.md"
 Recharger la config tmux		source-file ~/.config/tmux/tmux.conf ; display-message "Config rechargée"
 Fermer la session courante		confirm-before -p "kill-session #S? (y/n)" kill-session
