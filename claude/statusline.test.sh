@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests of statusline.sh: pace coloring of the 5h and 7d usages and the quota log.
+# Tests of statusline.sh: pace coloring of the 5h and 7d usages, the quota log and the merged quota display.
 # Usage: statusline.test.sh
 #   prints `ok <name>` or `FAIL <name>: <detail>` per test and a summary line; exits 1 when a test failed
 # Isolation: every test runs in a mktemp -d sandbox with HOME and XDG_STATE_HOME inside it, removed afterwards.
@@ -201,6 +201,55 @@ should_still_print_the_usage_segment_when_the_log_location_is_unwritable() {
     export XDG_STATE_HOME="$SANDBOX/not-a-directory"
     output=$(render "$(fixed_quota_json 40 1000 10 5000)" 2>&1)
     assert_contains "$output" "[5h"
+    assert_contains "$output" "40%"
+}
+
+should_display_the_logged_percentage_when_the_session_reports_a_stale_lower_one_for_the_same_reset() {
+    local output now="$EPOCHSECONDS"
+    render "$(fixed_quota_json 40 "$((now + 3600))" 10 "$((now + 86400))")" >/dev/null
+    output=$(render "$(fixed_quota_json 26 "$((now + 3600))" 10 "$((now + 86400))")")
+    assert_contains "$output" "40%"
+    assert_not_contains "$output" "26%"
+}
+
+should_display_the_session_percentage_when_it_is_newer_than_the_log() {
+    local output now="$EPOCHSECONDS"
+    render "$(fixed_quota_json 40 "$((now + 3600))" 10 "$((now + 86400))")" >/dev/null
+    output=$(render "$(fixed_quota_json 55 "$((now + 3600))" 10 "$((now + 86400))")")
+    assert_contains "$output" "55%"
+    assert_not_contains "$output" "40%"
+}
+
+should_display_the_logged_state_and_append_nothing_when_the_session_has_no_rate_limits() {
+    local output now="$EPOCHSECONDS"
+    render "$(fixed_quota_json 40 "$((now + 3600))" 10 "$((now + 86400))")" >/dev/null
+    output=$(render '{"model":{"display_name":"Opus"}}')
+    assert_contains "$output" "[5h"
+    assert_contains "$output" "40%"
+    assert_contains "$output" "[7d"
+    assert_line_count 2
+}
+
+should_ignore_a_logged_window_whose_reset_is_in_the_past_for_display() {
+    local output now="$EPOCHSECONDS"
+    render "$(fixed_quota_json 90 "$((now - 100))" 10 "$((now + 86400))")" >/dev/null
+    output=$(render "$(fixed_quota_json 20 "$((now - 100))" 10 "$((now + 86400))")")
+    assert_contains "$output" "20%"
+    assert_not_contains "$output" "90%"
+}
+
+should_keep_displaying_session_values_when_the_log_holds_garbage() {
+    local output now="$EPOCHSECONDS"
+    mkdir -p "$(dirname "$LOG_FILE")"
+    printf 'x\tabc\tdef\tghi\tjkl\n' >"$LOG_FILE"
+    output=$(render "$(fixed_quota_json 40 "$((now + 3600))" 10 "$((now + 86400))")")
+    assert_contains "$output" "40%"
+}
+
+should_keep_displaying_session_values_when_the_log_is_unreadable() {
+    local output now="$EPOCHSECONDS"
+    mkdir -p "$LOG_FILE"
+    output=$(render "$(fixed_quota_json 40 "$((now + 3600))" 10 "$((now + 86400))")")
     assert_contains "$output" "40%"
 }
 
