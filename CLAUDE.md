@@ -20,7 +20,7 @@ The repo is public: it holds nothing that grants access or reveals the user's ne
 ## Invariants
 
 - **mise**: one `mise/config.toml` for every machine; servers install only the Justfile's `shell_tools` subset.
-- **Claude Code**: only machine-independent, non-sensitive settings go in `claude/settings.json`. `just claude` merges it with jq `*`, which replaces arrays instead of merging them: an array in the base (`hooks.PreToolUse`, `autoMode.allow`…) overwrites the machine's copy whole, so it lists every entry.
+- **Claude Code**: only machine-independent, non-sensitive settings go in `claude/settings.json`. `just claude` merges it with jq `*`, which replaces arrays instead of merging them: an array in the base (`hooks.PreToolUse`, `autoMode.allow`…) overwrites the machine's copy whole, so it lists every entry. Plugins and marketplaces dropped from it are uninstalled by `just claude` (state in `~/.claude/dotfiles-managed.json`), never those installed by hand.
 - **System packages**: every apt call has a pacman twin, picked through `scripts/distro-family.sh` (Debian and Arch families only, anything else is an error).
 - **Docs in sync**: any Justfile change updates `README.md` and its French copy `docs/fr/README.md` in the same change (Commands table + the affected install steps).
 

@@ -178,7 +178,7 @@ notes:
     create_remote
     echo "Notes repo created."
 
-# Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills, rtk config) and merge the base settings
+# Link the Claude Code config (CLAUDE.md, RTK.md, agents, skills, rtk config) and merge the base settings, uninstall plugins dropped from them
 claude:
     #!/usr/bin/env bash
     set -euo pipefail
@@ -278,6 +278,7 @@ claude:
     eval "$(mise env -s bash)"
     require_jq
     jq empty "$base_settings"
+    "$repo_config/prune-plugins.sh" "$base_settings" "$claude_home"
     mkdir -p "$claude_home/agents" "$claude_home/skills"
     link_repo_entries
     link_rtk_config
