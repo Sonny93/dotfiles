@@ -5,10 +5,11 @@
 # status, user@host, time), then the session name.
 # Line two shows the model, duration, the transcript size on disk, and the context
 # (against the auto-compact window), 5h and 7d usages. The 5h and 7d usages are
-# colored by pace (usage against the elapsed share of the window, with " +N" points
-# when ahead of it). They show the freshest known quota state, merged across sessions
-# (a session only refreshes its own values when it calls the API), unless that window
-# already reset. The merged state is logged whenever it moves forward to
+# colored by pace (usage against the elapsed share of the window), with " +N" points
+# when ahead of it and " -N" when behind it (beyond the tolerance on 5h, always on 7d).
+# They show the freshest known quota state, merged across sessions (a session only
+# refreshes its own values when it calls the API), unless that window already reset.
+# The merged state is logged whenever it moves forward to
 # ${XDG_STATE_HOME:-$HOME/.local/state}/claude/quota-usage.tsv.
 
 shopt -s extglob
@@ -117,6 +118,7 @@ PACE_MIDPOINT_POINTS=$(((PACE_TOLERANCE_POINTS + PACE_DANGER_POINTS) / 2))
 PACE_GREEN_ANCHOR="80;200;80"
 PACE_YELLOW_ANCHOR="230;200;60"
 PACE_RED_ANCHOR="230;70;70"
+SEVEN_DAY_GAP_DISPLAY_POINTS=0
 
 usage_color() {
   local percentage="$1"
@@ -218,6 +220,21 @@ render_unmeasured_context() {
   printf '%s' "]${RESET}"
 }
 
+gap_display_points() {
+  if [ "$1" = "$SEVEN_DAY_WINDOW_SECONDS" ]; then
+    printf '%s' "$SEVEN_DAY_GAP_DISPLAY_POINTS"
+  else
+    printf '%s' "$PACE_TOLERANCE_POINTS"
+  fi
+}
+
+render_gap() {
+  local gap="$1" display_points="$2"
+  [ "$gap" -gt "$display_points" ] && printf ' +%s' "$gap"
+  [ "$gap" -lt "-$display_points" ] && printf ' %s' "$gap"
+  return 0
+}
+
 render_percentage() {
   local prefix="$1" percentage="$2" window_seconds="$3"
   local resets_at_name="${prefix}_resets_at" resets_at gap
@@ -228,7 +245,7 @@ render_percentage() {
   fi
   gap=$((percentage - $(elapsed_percentage "$window_seconds" "$resets_at")))
   printf '%s' "$(pace_color "$gap")${percentage}%"
-  [ "$gap" -gt "$PACE_TOLERANCE_POINTS" ] && printf ' +%s' "$gap"
+  render_gap "$gap" "$(gap_display_points "$window_seconds")"
   printf '%s' "$RESET"
 }
 

@@ -92,11 +92,23 @@ should_color_red_with_a_plus_gap_when_usage_is_far_ahead_of_the_five_hour_window
     assert_contains "$output" "${RED_ANCHOR}40% +30"
 }
 
-should_color_green_without_a_gap_when_usage_is_behind_the_five_hour_window() {
+should_color_green_with_a_minus_gap_when_usage_is_behind_the_five_hour_window() {
     local output
     output=$(render "$(quota_json 90 "$((10 * SECONDS_PER_MINUTE))" 1 "$SEVEN_DAY_SECONDS")")
-    assert_contains "$output" "${GREEN_ANCHOR}90%"
+    assert_contains "$output" "${GREEN_ANCHOR}90% -6"
     assert_not_contains "$output" "90% +"
+}
+
+should_show_no_gap_when_five_hour_usage_is_within_the_tolerance_of_the_elapsed_share() {
+    local output
+    output=$(render "$(quota_json 52 "$((FIVE_HOUR_SECONDS / 2))" 1 "$SEVEN_DAY_SECONDS")")
+    assert_contains "$output" "${GREEN_ANCHOR}52%"$'\033[0m'
+}
+
+should_show_a_small_gap_when_seven_day_usage_is_within_the_tolerance_of_the_elapsed_share() {
+    local output
+    output=$(render "$(quota_json 1 "$FIVE_HOUR_SECONDS" 25 "$((5 * SECONDS_PER_DAY))")")
+    assert_contains "$output" "${GREEN_ANCHOR}25% -3"$'\033[0m'
 }
 
 should_color_red_with_a_plus_gap_when_usage_is_far_ahead_of_the_seven_day_window() {
