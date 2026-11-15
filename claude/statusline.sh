@@ -6,8 +6,10 @@
 # Line two shows the model, duration, the transcript size on disk, and the context
 # (against the auto-compact window), 5h and 7d usages. The 5h and 7d usages are
 # colored by pace (usage against the elapsed share of the window, with " +N" points
-# when ahead of it). The newest known quota state, merged across sessions, is logged
-# whenever it moves forward to ${XDG_STATE_HOME:-$HOME/.local/state}/claude/quota-usage.tsv.
+# when ahead of it). They show the freshest known quota state, merged across sessions
+# (a session only refreshes its own values when it calls the API), unless that window
+# already reset. The merged state is logged whenever it moves forward to
+# ${XDG_STATE_HOME:-$HOME/.local/state}/claude/quota-usage.tsv.
 
 shopt -s extglob
 
@@ -394,6 +396,7 @@ load_session_fields() {
 }
 
 QUOTA_LOG_DIRECTORY_MODE=700
+QUOTA_CHANGED_STATUS="changed"
 QUOTA_LOG_HEADER=$'# epoch_seconds\tfive_hour_used_percentage\tfive_hour_resets_at\tseven_day_used_percentage\tseven_day_resets_at'
 
 quota_log_file() {
@@ -419,18 +422,25 @@ QUOTA_MERGE_PROGRAM='
   BEGIN {
     split(last_line, last, "\t")
     if (is_newer(five_percentage, five_resets_at, last[2], last[3])) {
-      merged_five = five_percentage "\t" five_resets_at
+      merged_five_percentage = five_percentage
+      merged_five_resets_at = five_resets_at
     } else {
-      merged_five = last[2] "\t" last[3]
+      merged_five_percentage = last[2]
+      merged_five_resets_at = last[3]
     }
     if (is_newer(seven_percentage, seven_resets_at, last[4], last[5])) {
-      merged_seven = seven_percentage "\t" seven_resets_at
+      merged_seven_percentage = seven_percentage
+      merged_seven_resets_at = seven_resets_at
     } else {
-      merged_seven = last[4] "\t" last[5]
+      merged_seven_percentage = last[4]
+      merged_seven_resets_at = last[5]
     }
-    if (merged_five "\t" merged_seven != last[2] "\t" last[3] "\t" last[4] "\t" last[5]) {
-      print merged_five "\t" merged_seven
-    }
+    merged_line = merged_five_percentage "\t" merged_five_resets_at "\t" merged_seven_percentage "\t" merged_seven_resets_at
+    print (merged_line != last[2] "\t" last[3] "\t" last[4] "\t" last[5]) ? "changed" : "unchanged"
+    print merged_five_percentage
+    print merged_five_resets_at
+    print merged_seven_percentage
+    print merged_seven_resets_at
   }
 '
 
@@ -452,13 +462,30 @@ merge_quota_state() {
     "$QUOTA_MERGE_PROGRAM" 2>/dev/null
 }
 
-log_quota_usage() {
-  local log_file merged_fields
-  [ -z "${quota_five_hour_used_percentage}${quota_seven_day_used_percentage}" ] && return 0
+apply_merged_window() {
+  local prefix="$1" percentage="$2" resets_at="$3"
+  [[ "$resets_at" =~ ^[0-9]+$ ]] || return 0
+  [ "$resets_at" -gt "$EPOCHSECONDS" ] || return 0
+  [[ "$percentage" =~ ^[0-9]+(\.[0-9]+)?$ ]] || return 0
+  printf -v "${prefix}_used_percentage" '%s' "${percentage%%.*}"
+  printf -v "${prefix}_resets_at" '%s' "$resets_at"
+}
+
+log_merged_quota_state() {
+  local log_file="$1" log_fields
+  shift
+  printf -v log_fields '%s\t%s\t%s\t%s' "$@"
+  append_quota_log_line "$log_file" "$log_fields"
+}
+
+sync_quota_state() {
+  local log_file merged_output merged_lines=()
   log_file=$(quota_log_file)
-  merged_fields=$(merge_quota_state "$(last_quota_log_line "$log_file")") || return 0
-  [ -z "$merged_fields" ] && return 0
-  append_quota_log_line "$log_file" "$merged_fields"
+  merged_output=$(merge_quota_state "$(last_quota_log_line "$log_file")") || return 0
+  mapfile -t merged_lines <<< "$merged_output"
+  [ "${merged_lines[0]}" = "$QUOTA_CHANGED_STATUS" ] && log_merged_quota_state "$log_file" "${merged_lines[@]:1:4}"
+  apply_merged_window rate_limits_five_hour "${merged_lines[1]:-}" "${merged_lines[2]:-}"
+  apply_merged_window rate_limits_seven_day "${merged_lines[3]:-}" "${merged_lines[4]:-}"
   return 0
 }
 
@@ -581,7 +608,7 @@ print_wrapped_line() {
 }
 
 load_session_fields
-log_quota_usage
+sync_quota_state
 
 render_line_one_segments | print_wrapped_line
 render_line_two_segments | print_wrapped_line
