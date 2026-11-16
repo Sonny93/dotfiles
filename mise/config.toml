@@ -19,7 +19,7 @@ osv-scanner = "latest"
 pnpm = "latest"
 rtk = "latest"
 ripgrep = "latest"
-rust = { version = "latest", components = ["rust-analyzer", "rust-src"] }
+rust = { version = "1.100.0", components = ["rust-analyzer", "rust-src"] }
 semgrep = "latest"
 shellcheck = "latest"
 starship = "latest"
