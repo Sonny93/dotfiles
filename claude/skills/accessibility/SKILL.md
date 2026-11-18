@@ -1,7 +1,7 @@
 ---
 name: accessibility
 description: >
-  Accessibility rules (WCAG 2.2 AA) for UI code — semantics, keyboard, focus,
+  Accessibility rules (WCAG 2.2 AA) for UI code: semantics, keyboard, focus,
   contrast, labels, ARIA, dialogs, motion, target size, plus React Native and
   CLI output. Use when creating or editing components, pages, forms, modals,
   design tokens, styles, Storybook stories or terminal output.

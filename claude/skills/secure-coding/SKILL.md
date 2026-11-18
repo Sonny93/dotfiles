@@ -2,7 +2,7 @@
 name: secure-coding
 description: >
   Security rules for code that handles identity, data, files, processes or
-  outbound requests — authorization, injection, XSS, path traversal, SSRF,
+  outbound requests: authorization, injection, XSS, path traversal, SSRF,
   secrets, tokens, rate limiting, logging, headers, supply chain. Use when
   writing or reviewing any backend, API, auth flow, upload, scraper, ffmpeg
   or child-process code, browser extension, or mobile token storage.
@@ -68,7 +68,7 @@ const target = resolve(BASE_DIR, requestedName)
 if (!target.startsWith(BASE_DIR + sep)) throw new ForbiddenException()
 ```
 
-**Outbound requests (SSRF)** — scrapers, proxies, webhooks
+**Outbound requests (SSRF)**: scrapers, proxies, webhooks
 - Allowlist hosts, or resolve DNS and block private, loopback, link-local and metadata IPs (`169.254.169.254`) before connecting.
 - Connect to the resolved IP, re-check on every redirect, set timeouts and a response size cap, allow only `http(s)`.
 

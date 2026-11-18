@@ -49,7 +49,7 @@ Never install anything. Skip silently what is missing.
 
 First line: `Verdict: pass | pass with fixes | block`. Then findings sorted `Critical | High | Medium | Low`, one per entry:
 
-`file:line` — problem — evidence (attacker, request, outcome) — fix — confidence (high/medium)
+`file:line`: problem; evidence (attacker, request, outcome); fix; confidence (high/medium)
 
 Prefer proposing a failing test as the evidence. Cap at 10 findings, drop low-confidence ones. Write "No findings." when there are none; that is a valid result.
 
