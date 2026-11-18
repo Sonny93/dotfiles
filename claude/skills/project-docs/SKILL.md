@@ -41,7 +41,7 @@ Stays out:
 
 - Ideas → `~/notes/<project>.md` (`note-idea` skill).
 - Multi-phase plans → `~/.claude/plans/` (`plan-phase` skill).
-- Tickets and roadmaps → Notion, kan.bn or GitHub Issues. The README links only a tracker the public can open; with none, it points to GitHub Issues.
+- Tickets and roadmaps → Notion or GitHub Issues. The README links only a tracker the public can open; with none, it points to GitHub Issues.
 - Architecture decisions → ADRs in `docs/adr/` (`domain-modeling` skill).
 - A TODO, PLAN, AUDIT or NOTES file found in a repo: list what is live, done or stale, propose where the live items go, and delete the file only once the user agrees. Git history is the archive; no `docs/archive/`.
 
