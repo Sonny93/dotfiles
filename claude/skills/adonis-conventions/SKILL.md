@@ -1,14 +1,14 @@
 ---
 name: adonis-conventions
 description: >
-  AdonisJS v7 backend conventions — service layer, single-action controllers,
+  AdonisJS v7 backend conventions: service layer, single-action controllers,
   transformers, VineJS validators, typed exceptions, routes, Lucid, Japa
   tests. Use when creating or editing anything in an AdonisJS project
   (controllers, services, models, transformers, validators, routes,
   migrations, tests). Builds on typescript-conventions.
 ---
 
-Apply **typescript-conventions** first — this skill only adds what is specific to AdonisJS.
+Apply **typescript-conventions** first: this skill only adds what is specific to AdonisJS.
 These are defaults: apply them as far as the project allows, and follow the project when its needs differ (see "Applying These Rules" in `CLAUDE.md`).
 
 # Stack
@@ -17,17 +17,17 @@ AdonisJS v7, TypeScript strict, Node.js 24, Lucid ORM, VineJS, Japa
 
 ---
 
-# Architecture — Service Layer
+# Architecture: Service Layer
 
 Controllers are thin. Services own the logic. Transformers own the output shape.
 
 ```
 app/
-├── controllers/         # HTTP only — validate, call service, serialize
-├── services/            # Business logic — no HttpContext, no request, no response
-├── models/              # Lucid models — persistence only, no business logic
-├── transformers/        # One transformer per model — owns the JSON output shape
-├── validators/          # VineJS schemas — one file per resource action
+├── controllers/         # HTTP only: validate, call service, serialize
+├── services/            # Business logic: no HttpContext, no request, no response
+├── models/              # Lucid models: persistence only, no business logic
+├── transformers/        # One transformer per model: owns the JSON output shape
+├── validators/          # VineJS schemas: one file per resource action
 ├── exceptions/          # Typed domain exceptions extending Exception
 ├── middleware/          # Cross-cutting HTTP concerns
 └── policies/            # Bouncer authorization policies
@@ -36,14 +36,14 @@ start/
 └── routes.ts            # Grouped by domain, named routes only
 ```
 
-**Controller — one action per controller, max two methods:**
+**Controller: one action per controller, max two methods:**
 
-- `render` — handles GET requests (display a page or return JSON data)
-- `execute` — handles all other verbs (POST, PATCH, PUT, DELETE)
+- `render`: handles GET requests (display a page or return JSON data)
+- `execute`: handles all other verbs (POST, PATCH, PUT, DELETE)
 
 A controller that only mutates data has no `render`. A controller that only displays has no `execute`.
 
-Naming: `<action>_<resource>_controller.ts` — never a generic resource controller.
+Naming: `<action>_<resource>_controller.ts`: never a generic resource controller.
 
 ```
 # Inertia (SSR pages)
@@ -65,14 +65,14 @@ Each method follows these steps:
 - `render`: call service → return `inertia.render()` or `serialize(Transformer.transform(result))`
 - `execute`: validate input → call service → redirect or return `serialize(Transformer.transform(result))`
 
-**Service — rules:**
-- All business logic lives here — zero framework imports allowed
+**Service: rules:**
+- All business logic lives here: zero framework imports allowed
 - Never import `HttpContext`, `request`, or `response`
-- One service per domain: `UserService`, `BillingService` — never `AppService`
+- One service per domain: `UserService`, `BillingService`: never `AppService`
 - Services can call other services, max 2 levels deep
-- Services are **always classes** decorated with `@inject()` — never plain exported functions
+- Services are **always classes** decorated with `@inject()`: never plain exported functions
 - Inject via constructor (Adonis IoC container handles instantiation)
-- Jobs support `@inject()` the same way controllers do — always use it
+- Jobs support `@inject()` the same way controllers do: always use it
 
 ```ts
 // ✅ correct
@@ -91,19 +91,19 @@ export default class ProcessVodJob extends Job<Payload> {
   }
 }
 
-// ❌ wrong — plain exported functions prevent injection and mocking
+// ❌ wrong: plain exported functions prevent injection and mocking
 export async function transcribeLocal(...) {}
 ```
 
-**Model — rules:**
+**Model: rules:**
 - Columns, relationships, hooks only
-- No business logic — `User.createWithWelcomeEmail()` belongs in `UserService`
+- No business logic: `User.createWithWelcomeEmail()` belongs in `UserService`
 - Query scopes are allowed for reusable query fragments
 - Never call `Model.query()` directly in controllers
 
 ---
 
-# Transformers — mandatory for all responses
+# Transformers: mandatory for all responses
 
 Every HTTP response that returns data must go through a transformer. Never return raw models, raw objects, or `JSON.stringify` manually.
 
@@ -139,12 +139,12 @@ async render({ serialize, params }: HttpContext) {
 ```
 
 **Rules:**
-- One transformer per model: `UserTransformer`, `PostTransformer` — never reuse for different shapes
+- One transformer per model: `UserTransformer`, `PostTransformer`: never reuse for different shapes
 - Use variants for different output contexts (e.g. `PostTransformer.variant('summary')`)
-- Relationships: transform nested resources with their own transformer — never inline
+- Relationships: transform nested resources with their own transformer: never inline
 - Never expose: `password`, `rememberMeToken`, internal flags, audit fields unless explicitly needed
-- Always use `this.pick()` — never spread the whole model (`{ ...this.resource }`)
-- Transformers generate TypeScript types for the frontend — keep them stable
+- Always use `this.pick()`: never spread the whole model (`{ ...this.resource }`)
+- Transformers generate TypeScript types for the frontend: keep them stable
 
 ---
 
@@ -183,14 +183,14 @@ app/
 
 ---
 
-# Validation — VineJS
+# Validation: VineJS
 
-- VineJS is the boundary validator in Adonis — it replaces Zod for HTTP input
+- VineJS is the boundary validator in Adonis: it replaces Zod for HTTP input
 - Every route with a body or query params has a dedicated VineJS validator
 - Validators live in `app/<domain>/validators/<action>_<resource>_validator.ts`
-- Validation happens in the controller — never in services
+- Validation happens in the controller: never in services
 - Never access `request.body()` or `request.all()` without validating first
-- Fail with field-level messages — never `"Invalid input"`
+- Fail with field-level messages: never `"Invalid input"`
 
 ```ts
 // app/users/validators/create_user_validator.ts
@@ -226,7 +226,7 @@ export class UserNotFoundException extends Exception {
 }
 ```
 
-- Services throw domain exceptions — controllers never catch and reformat
+- Services throw domain exceptions: controllers never catch and reformat
 - Use the global exception handler in `app/exceptions/handler.ts` for consistent error shapes
 
 ---
@@ -234,9 +234,9 @@ export class UserNotFoundException extends Exception {
 # Routes
 
 - Group routes by domain with a shared prefix and middleware
-- Route names are explicit action-based — never use REST conventions (`index`, `store`, `update`, `destroy`)
+- Route names are explicit action-based: never use REST conventions (`index`, `store`, `update`, `destroy`)
 - Use `<domain>.<action>` pattern: `posts.show_posts`, `posts.create_post`, `posts.delete_post`
-- Never hardcode URLs — use `router.makeUrl('posts.show_post', { id })`
+- Never hardcode URLs: use `router.makeUrl('posts.show_post', { id })`
 - HTTP verbs must match intent: `GET` reads, `POST` creates, `PATCH` partial update, `PUT` full replace, `DELETE` removes
 - Import controllers via `#generated/controllers` barrel (Adonis v7):
 
@@ -258,24 +258,24 @@ router.group(() => {
 
 # Database & Lucid
 
-- Migrations for every schema change — never edit DB directly
-- Always preload relationships explicitly — no lazy loading in loops
+- Migrations for every schema change: never edit DB directly
+- Always preload relationships explicitly: no lazy loading in loops
 - Wrap multi-step writes in a transaction
 - Column names: `snake_case` in DB, `camelCase` in model via `@column` decorator
-- Never write raw SQL inline in a controller or service — wrap in a model scope or dedicated query method
+- Never write raw SQL inline in a controller or service: wrap in a model scope or dedicated query method
 
 ---
 
 # Environment variables
 
 - An env var exists only for a value that differs between deployments (host, port, URLs, credentials, log level) or is a secret
-- A value the code fixes is a constant in config, not an env var — e.g. the session store is always `database`: `store: app.inTest ? 'memory' : 'database'`, no `SESSION_DRIVER`
+- A value the code fixes is a constant in config, not an env var. Example: the session store is always `database` (`store: app.inTest ? 'memory' : 'database'`), no `SESSION_DRIVER`
 - Branch on `app.inTest` / `app.inProduction` instead of adding a switch variable per environment
 - Every env var is validated in `start/env.ts` and listed in `.env.example`; delete it from both (and from `Dockerfile` / compose) as soon as the code stops needing it
 
 ---
 
-# Testing — Japa
+# Testing: Japa
 
 - Feature tests for every controller route: happy path + main error cases
 - Unit tests for services with non-trivial business logic

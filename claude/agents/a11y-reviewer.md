@@ -46,7 +46,7 @@ Never install anything. Skip silently what is missing.
 
 First line: `Verdict: pass | pass with fixes | block`. Then findings sorted `Critical | High | Medium | Low`, one per entry:
 
-`file:line` — problem — evidence (WCAG 2.2 criterion number and name, who is blocked) — fix — confidence (high/medium)
+`file:line`: problem; evidence (WCAG 2.2 criterion number and name, who is blocked); fix; confidence (high/medium)
 
 Cap at 10 findings, drop low-confidence ones. Write "No findings." when there are none; that is a valid result.
 

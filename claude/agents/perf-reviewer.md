@@ -37,7 +37,7 @@ Never install anything. Skip silently what is missing. Read-only: never run migr
 
 First line: `Verdict: pass | pass with fixes | block`. Then findings sorted `Critical | High | Medium | Low`, one per entry:
 
-`file:line` — problem — evidence (query count, complexity, or measured number) — estimated impact — fix — confidence (high/medium)
+`file:line`: problem; evidence (query count, complexity, or measured number); estimated impact; fix; confidence (high/medium)
 
 Cap at 10 findings, drop low-confidence ones. Write "No findings." when there are none; that is a valid result.
 

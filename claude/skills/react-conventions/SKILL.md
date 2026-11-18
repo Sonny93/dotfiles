@@ -7,7 +7,7 @@ description: >
   Builds on typescript-conventions.
 ---
 
-Apply **typescript-conventions** first — this skill only adds what is specific to React.
+Apply **typescript-conventions** first: this skill only adds what is specific to React.
 These are defaults: apply them as far as the project allows, and follow the project when its needs differ (see "Applying These Rules" in `CLAUDE.md`).
 
 # Stack
@@ -24,12 +24,12 @@ Projects are either React + Inertia (AdonisJS, frontend in `inertia/`) or React 
 ```
 inertia/
 ├── shared/              # Primitives with zero business logic (Button, Badge, Input, Modal)
-├── pages/               # Inertia page components — one per controller action
+├── pages/               # Inertia page components: one per controller action
 │   └── posts/
 │       ├── show_posts.tsx
 │       ├── show_post.tsx
 │       └── create_post.tsx
-├── posts/               # Domain — components, hooks, helpers for posts
+├── posts/               # Domain: components, hooks, helpers for posts
 │   ├── shared/          # Shared across multiple post pages
 │   ├── show_posts/      # Specific to the show_posts page
 │   │   ├── post_list.tsx
@@ -49,13 +49,13 @@ inertia/
 2. Used in multiple pages of the same domain → moves to `<domain>/shared/`
 3. Used across multiple domains → moves to `inertia/shared/`
 
-## Max ~100 lines per file — overrides the TypeScript default (~150); decompose when it grows beyond that
+## Max ~100 lines per file: overrides the TypeScript default (~150); decompose when it grows beyond that
 
 ---
 
 # Components
 
-## Pure components (JSX only — no state, no effects, no variables)
+## Pure components (JSX only: no state, no effects, no variables)
 
 Use a `const` arrow function with implicit return:
 
@@ -102,7 +102,7 @@ export function PostCard({ postId, onDelete }: Readonly<PostCardProps>) {
 
 ## Inertia page components
 
-Always a named `function` declaration — never a const arrow. **Must use `export default`** — Inertia resolves pages by default export:
+Always a named `function` declaration: never a const arrow. **Must use `export default`**: Inertia resolves pages by default export:
 
 ```tsx
 // inertia/pages/posts/show_post.tsx
@@ -123,15 +123,15 @@ export default function ShowPost({ post }: Readonly<ShowPostProps>) {
 
 - `children` typed as `React.ReactNode`
 - Inertia page components must `export default` (the exception allowed by typescript-conventions)
-- No logic inside JSX — ternaries, `.map()` with logic, nested conditions → extract to a variable or component
+- No logic inside JSX: ternaries, `.map()` with logic, nested conditions → extract to a variable or component
 - Max 2 levels of JSX nesting before extracting a sub-component
-- Never pass more than 3 props through an intermediary component — use composition or `children`
+- Never pass more than 3 props through an intermediary component: use composition or `children`
 
 ---
 
 # Classnames
 
-Always use `cn()` — never template literals for conditional or combined classes:
+Always use `cn()`: never template literals for conditional or combined classes:
 
 ```tsx
 // ❌
@@ -148,8 +148,8 @@ Always use `cn()` — never template literals for conditional or combined classe
 
 # Hooks
 
-- One hook per file — even if it's 5 lines
-- Filename: `use_<name>.ts` — never `.tsx` unless the hook returns JSX (rare)
+- One hook per file: even if it's 5 lines
+- Filename: `use_<name>.ts`: never `.tsx` unless the hook returns JSX (rare)
 - Hook name matches filename: `use_auth.ts` → `useAuth()`
 - Return type is a named `type`:
 
@@ -167,14 +167,14 @@ export function usePosts(): UsePostsReturn {
 }
 ```
 
-- Never put fetch logic directly in a component — always in a hook
+- Never put fetch logic directly in a component: always in a hook
 - A hook wrapping a single `useState` is only worth extracting if it adds logic
 
 ---
 
 # JSX Discipline
 
-- No anonymous functions in JSX — always extract handlers:
+- No anonymous functions in JSX: always extract handlers:
 
 ```tsx
 // ❌
@@ -188,8 +188,8 @@ const handleOpen = () => {
 <button onClick={handleOpen}>
 ```
 
-- No nested ternaries in JSX — extract to a variable or sub-component
-- Lists always have a stable, unique `key` — never array index as key
+- No nested ternaries in JSX: extract to a variable or sub-component
+- Lists always have a stable, unique `key`: never array index as key
 - Use `<>` fragments instead of wrapping `<div>` when no DOM element is needed
 
 ---
@@ -214,6 +214,6 @@ const handleOpen = () => {
 
 # Inertia-specific (AdonisJS projects)
 
-- Page components live in `inertia/pages/<domain>/` — named after the controller action
-- Use `router.get()` / `router.post()` from `@inertiajs/react` for navigation — never native `fetch` for Inertia actions
-- Forms use `useForm()` from `@inertiajs/react` — never `useState` for form fields in Inertia pages
+- Page components live in `inertia/pages/<domain>/`: named after the controller action
+- Use `router.get()` / `router.post()` from `@inertiajs/react` for navigation: never native `fetch` for Inertia actions
+- Forms use `useForm()` from `@inertiajs/react`: never `useState` for form fields in Inertia pages
