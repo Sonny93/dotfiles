@@ -9,7 +9,10 @@
 # when ahead of it and " -N" when behind it (beyond the tolerance on 5h, always on 7d).
 # They show the freshest known quota state, merged across sessions (a session only
 # refreshes its own values when it calls the API), unless that window already reset.
-# The merged state is logged whenever it moves forward to
+# A known session whose own values just changed is trusted even when lower (a mid-window
+# quota reset), a known session whose values did not change is ignored, and a first-seen
+# session only wins when its reset is later or its percentage higher.
+# The merged state is logged whenever it changes to
 # ${XDG_STATE_HOME:-$HOME/.local/state}/claude/quota-usage.tsv.
 
 shopt -s extglob
@@ -329,6 +332,7 @@ SESSION_FIELDS_FILTER='
     workspace_current_dir: (.workspace.current_dir // .cwd),
     session_name: .session_name,
     transcript_path: .transcript_path,
+    session_id: .session_id,
     model_display_name: .model.display_name,
     effort_level: .effort.level,
     fast_mode: .fast_mode,
@@ -414,6 +418,11 @@ load_session_fields() {
 
 QUOTA_LOG_DIRECTORY_MODE=700
 QUOTA_CHANGED_STATUS="changed"
+QUOTA_MODE_MONOTONIC="monotonic"
+QUOTA_MODE_FRESH="fresh"
+QUOTA_MODE_IGNORE="ignore"
+SESSION_ID_PATTERN='^[A-Za-z0-9_-]+$'
+SESSION_STATE_RETENTION_DAYS=8
 QUOTA_LOG_HEADER=$'# epoch_seconds\tfive_hour_used_percentage\tfive_hour_resets_at\tseven_day_used_percentage\tseven_day_resets_at'
 
 quota_log_file() {
@@ -423,13 +432,18 @@ quota_log_file() {
 append_quota_log_line() {
   local log_file="$1" fields="$2"
   # shellcheck disable=SC2174
-  mkdir -p -m "$QUOTA_LOG_DIRECTORY_MODE" -- "${log_file%/*}" 2>/dev/null || return 0
-  [ -e "$log_file" ] || printf '%s\n' "$QUOTA_LOG_HEADER" 2>/dev/null >> "$log_file" || return 0
-  printf '%s\t%s\n' "$EPOCHSECONDS" "$fields" 2>/dev/null >> "$log_file" || return 0
+  mkdir -p -m "$QUOTA_LOG_DIRECTORY_MODE" -- "${log_file%/*}" 2>/dev/null || return 1
+  [ -e "$log_file" ] || printf '%s\n' "$QUOTA_LOG_HEADER" 2>/dev/null >> "$log_file" || return 1
+  printf '%s\t%s\n' "$EPOCHSECONDS" "$fields" 2>/dev/null >> "$log_file" || return 1
 }
 
 # shellcheck disable=SC2016
 QUOTA_MERGE_PROGRAM='
+  function takes_current(mode, current_percentage, current_resets_at, last_percentage, last_resets_at) {
+    if (mode == "ignore") return 0
+    if (mode == "fresh") return 1
+    return is_newer(current_percentage, current_resets_at, last_percentage, last_resets_at)
+  }
   function is_newer(current_percentage, current_resets_at, last_percentage, last_resets_at) {
     if (current_resets_at == "" || current_percentage == "") return 0
     if (last_resets_at == "") return 1
@@ -438,14 +452,14 @@ QUOTA_MERGE_PROGRAM='
   }
   BEGIN {
     split(last_line, last, "\t")
-    if (is_newer(five_percentage, five_resets_at, last[2], last[3])) {
+    if (takes_current(five_mode, five_percentage, five_resets_at, last[2], last[3])) {
       merged_five_percentage = five_percentage
       merged_five_resets_at = five_resets_at
     } else {
       merged_five_percentage = last[2]
       merged_five_resets_at = last[3]
     }
-    if (is_newer(seven_percentage, seven_resets_at, last[4], last[5])) {
+    if (takes_current(seven_mode, seven_percentage, seven_resets_at, last[4], last[5])) {
       merged_seven_percentage = seven_percentage
       merged_seven_resets_at = seven_resets_at
     } else {
@@ -460,6 +474,90 @@ QUOTA_MERGE_PROGRAM='
     print merged_seven_resets_at
   }
 '
+
+session_state_directory() {
+  printf '%s' "${XDG_STATE_HOME:-$HOME/.local/state}/claude/statusline-sessions"
+}
+
+is_valid_session_id() {
+  [[ "$1" =~ $SESSION_ID_PATTERN ]]
+}
+
+current_quota_record() {
+  printf '%s\t%s\t%s\t%s' \
+    "$quota_five_hour_used_percentage" "$rate_limits_five_hour_resets_at" \
+    "$quota_seven_day_used_percentage" "$rate_limits_seven_day_resets_at"
+}
+
+read_session_record() {
+  local record=""
+  IFS= read -r record 2>/dev/null < "$1"
+  printf '%s' "$record"
+}
+
+store_session_record() {
+  local state_file="$1" temporary_file="$1.$$"
+  printf '%s\n' "$2" 2>/dev/null > "$temporary_file" && mv -f -- "$temporary_file" "$state_file" 2>/dev/null && return 0
+  rm -f -- "$temporary_file" 2>/dev/null
+  return 0
+}
+
+create_session_record() {
+  local state_file="$1" record="$2" directory="${1%/*}"
+  # shellcheck disable=SC2174
+  mkdir -p -m "$QUOTA_LOG_DIRECTORY_MODE" -- "$directory" 2>/dev/null || return 0
+  find "$directory" -type f -mtime "+$SESSION_STATE_RETENTION_DAYS" -delete 2>/dev/null
+  store_session_record "$state_file" "$record"
+}
+
+window_merge_mode() {
+  local previous_percentage="$1" previous_resets_at="$2" current_percentage="$3" current_resets_at="$4"
+  if [ -z "$current_percentage" ] || [ -z "$current_resets_at" ]; then
+    printf '%s' "$QUOTA_MODE_IGNORE"
+  elif [ "$current_percentage" = "$previous_percentage" ] && [ "$current_resets_at" = "$previous_resets_at" ]; then
+    printf '%s' "$QUOTA_MODE_IGNORE"
+  else
+    printf '%s' "$QUOTA_MODE_FRESH"
+  fi
+}
+
+assign_known_session_modes() {
+  local previous_fields=()
+  mapfile -t previous_fields <<< "${1//$'\t'/$'\n'}"
+  five_hour_merge_mode=$(window_merge_mode "${previous_fields[0]}" "${previous_fields[1]}" "$quota_five_hour_used_percentage" "$rate_limits_five_hour_resets_at")
+  seven_day_merge_mode=$(window_merge_mode "${previous_fields[2]}" "${previous_fields[3]}" "$quota_seven_day_used_percentage" "$rate_limits_seven_day_resets_at")
+}
+
+persist_session_record() {
+  [ -n "$pending_session_state_file" ] || return 0
+  if [ -e "$pending_session_state_file" ]; then
+    store_session_record "$pending_session_state_file" "$pending_session_record"
+  else
+    create_session_record "$pending_session_state_file" "$pending_session_record"
+  fi
+}
+
+resolve_quota_merge_modes() {
+  local state_file previous_record current_record
+  pending_session_state_file=""
+  pending_session_record=""
+  five_hour_merge_mode="$QUOTA_MODE_MONOTONIC"
+  seven_day_merge_mode="$QUOTA_MODE_MONOTONIC"
+  is_valid_session_id "$session_id" || return 0
+  state_file="$(session_state_directory)/$session_id"
+  current_record=$(current_quota_record)
+  previous_record=$(read_session_record "$state_file")
+  if [ -z "$previous_record" ]; then
+    pending_session_state_file="$state_file"
+    pending_session_record="$current_record"
+    return 0
+  fi
+  assign_known_session_modes "$previous_record"
+  [ "$current_record" = "$previous_record" ] && return 0
+  pending_session_state_file="$state_file"
+  pending_session_record="$current_record"
+  return 0
+}
 
 last_quota_log_line() {
   local last_line
@@ -476,6 +574,8 @@ merge_quota_state() {
     -v five_resets_at="$rate_limits_five_hour_resets_at" \
     -v seven_percentage="$quota_seven_day_used_percentage" \
     -v seven_resets_at="$rate_limits_seven_day_resets_at" \
+    -v five_mode="$five_hour_merge_mode" \
+    -v seven_mode="$seven_day_merge_mode" \
     "$QUOTA_MERGE_PROGRAM" 2>/dev/null
 }
 
@@ -496,13 +596,18 @@ log_merged_quota_state() {
 }
 
 sync_quota_state() {
-  local log_file merged_output merged_lines=()
+  local log_file merged_output merged_lines=() log_status=0
   log_file=$(quota_log_file)
+  resolve_quota_merge_modes
   merged_output=$(merge_quota_state "$(last_quota_log_line "$log_file")") || return 0
   mapfile -t merged_lines <<< "$merged_output"
-  [ "${merged_lines[0]}" = "$QUOTA_CHANGED_STATUS" ] && log_merged_quota_state "$log_file" "${merged_lines[@]:1:4}"
+  if [ "${merged_lines[0]}" = "$QUOTA_CHANGED_STATUS" ]; then
+    log_merged_quota_state "$log_file" "${merged_lines[@]:1:4}"
+    log_status=$?
+  fi
   apply_merged_window rate_limits_five_hour "${merged_lines[1]:-}" "${merged_lines[2]:-}"
   apply_merged_window rate_limits_seven_day "${merged_lines[3]:-}" "${merged_lines[4]:-}"
+  [ "$log_status" -eq 0 ] && persist_session_record
   return 0
 }
 

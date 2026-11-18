@@ -68,6 +68,14 @@ fixed_quota_json() {
             + (if $seven_percentage == "" then {} else {seven_day: window($seven_percentage; $seven_resets_at)} end))}'
 }
 
+session_json() {
+    jq --arg session_id "$1" '. + {session_id: $session_id}' <<<"$2"
+}
+
+render_as_session() {
+    render "$(session_json "$1" "$2")"
+}
+
 render() {
     "$SCRIPT" <<<"$1"
 }
@@ -263,6 +271,102 @@ should_keep_displaying_session_values_when_the_log_is_unreadable() {
     mkdir -p "$LOG_FILE"
     output=$(render "$(fixed_quota_json 40 "$((now + 3600))" 10 "$((now + 86400))")")
     assert_contains "$output" "40%"
+}
+
+should_display_the_lower_percentage_when_the_same_session_reports_a_drop_for_the_same_reset() {
+    local output now="$EPOCHSECONDS" five_resets_at seven_resets_at
+    five_resets_at=$((now + 3600))
+    seven_resets_at=$((now + 86400))
+    render_as_session session-a "$(fixed_quota_json 10 "$five_resets_at" 100 "$seven_resets_at")" >/dev/null
+    output=$(render_as_session session-a "$(fixed_quota_json 10 "$five_resets_at" 6 "$seven_resets_at")")
+    assert_contains "$output" "6%"
+    assert_not_contains "$output" "100%"
+    assert_last_log_fields "10"$'\t'"$five_resets_at"$'\t'"6"$'\t'"$seven_resets_at"
+}
+
+should_keep_the_reset_percentage_when_a_known_session_still_reports_the_stale_higher_value() {
+    local output now="$EPOCHSECONDS" five_resets_at seven_resets_at
+    five_resets_at=$((now + 3600))
+    seven_resets_at=$((now + 86400))
+    render_as_session session-a "$(fixed_quota_json 10 "$five_resets_at" 100 "$seven_resets_at")" >/dev/null
+    render_as_session session-b "$(fixed_quota_json 10 "$five_resets_at" 100 "$seven_resets_at")" >/dev/null
+    render_as_session session-b "$(fixed_quota_json 10 "$five_resets_at" 6 "$seven_resets_at")" >/dev/null
+    output=$(render_as_session session-a "$(fixed_quota_json 10 "$five_resets_at" 100 "$seven_resets_at")")
+    assert_contains "$output" "6%"
+    assert_not_contains "$output" "100%"
+}
+
+should_display_the_fresh_percentage_when_a_known_session_is_followed_by_another_with_an_unchanged_value() {
+    local output now="$EPOCHSECONDS" five_resets_at seven_resets_at
+    five_resets_at=$((now + 3600))
+    seven_resets_at=$((now + 86400))
+    render_as_session session-a "$(fixed_quota_json 40 "$five_resets_at" 10 "$seven_resets_at")" >/dev/null
+    render_as_session session-b "$(fixed_quota_json 40 "$five_resets_at" 10 "$seven_resets_at")" >/dev/null
+    render_as_session session-b "$(fixed_quota_json 55 "$five_resets_at" 10 "$seven_resets_at")" >/dev/null
+    output=$(render_as_session session-a "$(fixed_quota_json 40 "$five_resets_at" 10 "$seven_resets_at")")
+    assert_contains "$output" "55%"
+    assert_not_contains "$output" "40%"
+}
+
+should_keep_the_monotonic_merge_when_a_first_seen_session_reports_a_lower_value() {
+    local output now="$EPOCHSECONDS" five_resets_at seven_resets_at
+    five_resets_at=$((now + 3600))
+    seven_resets_at=$((now + 86400))
+    render_as_session session-a "$(fixed_quota_json 40 "$five_resets_at" 10 "$seven_resets_at")" >/dev/null
+    output=$(render_as_session session-b "$(fixed_quota_json 26 "$five_resets_at" 10 "$seven_resets_at")")
+    assert_contains "$output" "40%"
+    assert_not_contains "$output" "26%"
+    assert_line_count 2
+}
+
+should_not_create_a_session_file_when_the_session_id_contains_a_slash_or_dots() {
+    render_as_session "../x" "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    [[ ! -e "$XDG_STATE_HOME/claude/statusline-sessions" ]] || echo "expected no session directory"
+    [[ ! -e "$XDG_STATE_HOME/claude/x" ]] || echo "expected no file outside the session directory"
+}
+
+should_store_the_raw_quota_values_in_the_session_file() {
+    render_as_session session-a "$(fixed_quota_json 40.7 1000 10 5000)" >/dev/null
+    local actual
+    actual=$(cat "$XDG_STATE_HOME/claude/statusline-sessions/session-a")
+    [[ "$actual" == $'40.7\t1000\t10\t5000' ]] || echo "unexpected session record [$actual]"
+}
+
+should_not_rewrite_the_session_file_when_the_values_are_unchanged() {
+    local input before after session_file="$XDG_STATE_HOME/claude/statusline-sessions/session-a"
+    input=$(fixed_quota_json 40 1000 10 5000)
+    render_as_session session-a "$input" >/dev/null
+    before=$(stat -c %y "$session_file")
+    sleep 0.05
+    render_as_session session-a "$input" >/dev/null
+    after=$(stat -c %y "$session_file")
+    [[ "$before" == "$after" ]] || echo "session file was rewritten ($before then $after)"
+}
+
+should_prune_only_old_session_files_when_a_new_session_file_is_created() {
+    local sessions_directory="$XDG_STATE_HOME/claude/statusline-sessions"
+    mkdir -p "$sessions_directory"
+    : >"$sessions_directory/old-session"
+    : >"$sessions_directory/recent-session"
+    touch -d '10 days ago' "$sessions_directory/old-session"
+    render_as_session new-session "$(fixed_quota_json 40 1000 10 5000)" >/dev/null
+    [[ ! -e "$sessions_directory/old-session" ]] || echo "expected the old session file to be pruned"
+    [[ -e "$sessions_directory/recent-session" ]] || echo "expected the recent session file to survive"
+    [[ -e "$sessions_directory/new-session" ]] || echo "expected the new session file to exist"
+}
+
+should_still_log_the_drop_on_a_later_render_when_the_log_was_unwritable_during_the_drop() {
+    local output now="$EPOCHSECONDS" five_resets_at seven_resets_at drop_json
+    five_resets_at=$((now + 3600))
+    seven_resets_at=$((now + 86400))
+    drop_json=$(fixed_quota_json 10 "$five_resets_at" 6 "$seven_resets_at")
+    render_as_session session-a "$(fixed_quota_json 10 "$five_resets_at" 100 "$seven_resets_at")" >/dev/null
+    chmod a-w "$LOG_FILE"
+    render_as_session session-a "$drop_json" >/dev/null
+    chmod u+w "$LOG_FILE"
+    output=$(render_as_session session-a "$drop_json")
+    assert_contains "$output" "6%"
+    assert_last_log_fields "10"$'\t'"$five_resets_at"$'\t'"6"$'\t'"$seven_resets_at"
 }
 
 for test_name in $(declare -F | awk '{print $3}' | grep '^should_'); do
