@@ -32,7 +32,7 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 - `~/notes/<project>.md` (project name per the `note-idea` skill) holds the user's quick ideas for each project, synced to a private repo. Read it when planning work on a project or when the user asks what is pending.
 - Add ideas only through `note-idea`. Never edit, reorder or delete the user's free notes (above the first `##`) or an existing idea without the user's go-ahead.
 - Without a tracker, the notes file is the project's tracker: when work completes an idea, propose removing it.
-- A `## Tracker` section in the notes file gives the project's tracker URL: read and record subjects there, and still read the notes file for quick ideas. Working on a notes idea starts by turning it into a ticket (its content as the body), then removing it from the notes file.
+- A `## Tracker` section in the notes file gives the project's tracker URL: new ideas and subjects go there only (`note-idea` creates the ticket), never in the notes file, to avoid duplicates. Still read the notes file for the user's free notes and older ideas; working on one of those starts by turning it into a ticket (its content as the body), then removing it from the notes file.
 
 # Writing
 

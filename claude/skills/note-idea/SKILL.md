@@ -2,7 +2,8 @@
 name: note-idea
 description: >
   Record an idea in the current project's notes (~/notes/<project>.md),
-  kept terse and synced to the private notes repo. Use when the user says
+  kept terse and synced to the private notes repo, or as a ticket in the
+  project's tracker when its notes file names one. Use when the user says
   "/note-idea", "note l'idée", "ajoute ça aux notes", "garde ça en idée",
   or when an idea worth keeping comes up and the user agrees to park it
   for later instead of doing it now.
@@ -20,7 +21,15 @@ description: >
 
 If `~/notes/.git` exists: `git -C ~/notes pull --rebase --autostash --quiet`. On failure, run `git -C ~/notes rebase --abort` if a rebase is in progress, tell the user, and stop. If `~/notes` is not a git repo, write the note anyway and tell the user to run `just notes`.
 
-## 3. Write the idea
+## 3. Project with a tracker
+
+When the notes file has a `## Tracker` section, the idea becomes a ticket in that tracker and the notes file stays untouched: the same idea in two places turns into duplicates.
+
+- Search the tracker for a ticket on the same subject. When one exists, show it and ask the user before changing it, instead of creating a second one.
+- Fetch the tracker's database to learn its properties, then create the ticket in its initial status (backlog or to do), in the user's language, with what a notes entry would carry: a short title, the what and why, the non-obvious leads. Fill `Type` and `Area` when the idea makes them obvious; no `[Type]` prefix in the title.
+- Reply with the ticket's link and stop: steps 4 and 5 don't apply.
+
+## 4. Write the idea
 
 Write in the user's language. The text above the first `##` heading is the user's own free notes: leave it as it is. Add the sections below at the end of the file the first time they are needed.
 
@@ -51,9 +60,7 @@ Every line carries information the user needs to pick the idea up again cold: th
 
 Before adding, read the file: when the idea is already there, show that entry and ask the user before changing it, instead of writing a second one. Never edit, reorder or delete another entry.
 
-A `## Tracker` section means the project has a ticket tracker (its URL is in that section): still write the idea in the notes file, which stays the place for quick capture, and leave the `## Tracker` section as it is. Before adding, check the tracker for a ticket on the same subject: when one exists, show it and ask the user instead of writing a duplicate. The idea becomes a ticket when someone starts working on it (global `CLAUDE.md`, Project Notes).
-
-## 4. Commit and push
+## 5. Commit and push
 
 If `~/notes` is a git repo:
 
@@ -67,4 +74,4 @@ The repo config already signs commits as `notes <notes@localhost>`. On push fail
 
 ## Done when
 
-The entry is in `~/notes/<project>.md`, committed and pushed (or the failure reported). Reply with the entry as written.
+The entry is in `~/notes/<project>.md`, committed and pushed (or the failure reported), and the reply shows it as written; or, for a project with a tracker, the ticket exists and the reply links it.
