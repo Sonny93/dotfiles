@@ -26,7 +26,7 @@ If `~/notes/.git` exists: `git -C ~/notes pull --rebase --autostash --quiet`. On
 When the notes file has a `## Tracker` section, the idea becomes a ticket in that tracker and the notes file stays untouched: the same idea in two places turns into duplicates.
 
 - Search the tracker for a ticket on the same subject. When one exists, show it and ask the user before changing it, instead of creating a second one.
-- Fetch the tracker's database to learn its properties, then create the ticket in its initial status (backlog or to do), in the user's language, with what a notes entry would carry: a short title, the what and why, the non-obvious leads. Fill `Type` and `Area` when the idea makes them obvious; no `[Type]` prefix in the title.
+- Fetch the tracker's database to learn its properties, then create the ticket in its `Ideas` status (or, without one, its initial status such as backlog or to do), in the user's language, with what a notes entry would carry: a short title, the what and why, the non-obvious leads. Fill `Type` and `Area` when the idea makes them obvious; no `[Type]` prefix in the title.
 - Reply with the ticket's link and stop: steps 4 and 5 don't apply.
 
 ## 4. Write the idea
