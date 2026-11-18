@@ -44,6 +44,12 @@ conventions apply in the repo (framework skills, CLAUDE.md, existing
 patterns) — this skill only governs the ticket lifecycle, not how to
 write the code.
 
+In a repository that uses devslot (a `devslot.toml`, a devslot block in
+`.env`, or a devslot message at session start), write code and start
+environments only in a devslot worktree: enter one with `EnterWorktree`,
+named after the ticket, before the first edit. Reading, searching and
+updating the ticket work from the main checkout.
+
 ### 4. Keep the ticket updated
 
 As the work progresses — and definitely before finishing — update the
@@ -74,6 +80,11 @@ Once the user gives the green light:
   wiring), split into one commit per logical concern rather than one
   giant commit — but don't over-split a repetitive mechanical change
   into one commit per file/item. Ask if the right granularity is unclear.
+- In a devslot worktree: commit there, then run `ds worktree land` from
+  the worktree to bring the commits onto the main checkout's branch (the
+  same go-ahead covers it). It only fast-forwards: if it says the base
+  moved, `git rebase <base>` in the worktree, resolve, commit, and run it
+  again. Any other refusal: explain it to the user and ask. Never push.
 
 ### 7. Move the ticket to Done
 
