@@ -84,15 +84,5 @@ skill again for the next phase.
 
 ## 6. Commit — only within this phase's own scope
 
-Commit only what belongs to this phase, once it's ready:
-
-- Conventional Commits format: `type(scope): subject`.
-- No `Co-Authored-By` trailer, no `Claude-Session` line, no "Generated
-  with Claude Code" footer — no assistant attribution of any kind.
-- Keep the commit message as concise as possible — subject line only,
-  no body, unless a body is genuinely necessary to understand the
-  commit's purpose.
-- If the phase naturally spans several distinct concerns (e.g. data
-  layer + UI + wiring), split into one commit per concern — but don't
-  over-split a repetitive mechanical change into one commit per
-  file/item. Ask if the right granularity is unclear.
+Commit only what belongs to this phase, once it's ready, through the
+`commit` skill.

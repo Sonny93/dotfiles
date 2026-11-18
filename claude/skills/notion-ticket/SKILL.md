@@ -15,7 +15,7 @@ Takes one argument: a Notion ticket ID, page ID, or URL. If no ticket was
 given when this skill was invoked, ask for it and stop — don't guess
 which ticket, don't list the database and pick one yourself.
 
-Uses the `mcp__notion__*` tools (official Notion MCP server).
+Uses the `mcp__claude_ai_Notion__*` tools (Notion connector from claude.ai).
 
 ## Process
 
@@ -71,15 +71,7 @@ When the work is done:
 
 Once the user gives the green light:
 
-- Conventional Commits format: `type(scope): subject`.
-- No `Co-Authored-By` trailer, no `Claude-Session` line, no "Generated
-  with Claude Code" footer — no assistant attribution of any kind.
-- Subject line only. Add a body only if it's genuinely necessary to
-  understand the commit's purpose — the diff already shows the what.
-- If the work spans several distinct concerns (e.g. API layer + UI +
-  wiring), split into one commit per logical concern rather than one
-  giant commit — but don't over-split a repetitive mechanical change
-  into one commit per file/item. Ask if the right granularity is unclear.
+- Commit through the `commit` skill.
 - In a devslot worktree: commit there, then run `ds worktree land` from
   the worktree to bring the commits onto the main checkout's branch (the
   same go-ahead covers it). It only fast-forwards: if it says the base
