@@ -41,7 +41,7 @@ Stays out:
 
 - Ideas → `~/notes/<project>.md` (`note-idea` skill).
 - Multi-phase plans → `~/.claude/plans/` (`plan-phase` skill).
-- Tickets and roadmaps → Notion or GitHub Issues. The README links only a tracker the public can open; with none, it points to GitHub Issues.
+- Tickets and roadmaps → the private Notion tracker, or GitHub Issues for what the public should see. The README never links the private tracker: it points to GitHub Issues.
 - Architecture decisions → ADRs in `docs/adr/` (`domain-modeling` skill).
 - A TODO, PLAN, AUDIT or NOTES file found in a repo: list what is live, done or stale, propose where the live items go, and delete the file only once the user agrees. Git history is the archive; no `docs/archive/`.
 
@@ -62,7 +62,7 @@ The root README is the entry point, in this order:
 2. Status, when not production-ready.
 3. Install and run: the shortest path that works when pasted.
 4. Develop and verify: point to the check recipe instead of listing its steps.
-5. Links: `docs/` pages, every package README in a monorepo, the tracker.
+5. Links: `docs/` pages, every package README in a monorepo, GitHub Issues.
 6. License.
 
 Past about 100 lines, sections move to `docs/`, one link deep from the README. A package README covers its package and links back to the root.

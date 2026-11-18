@@ -32,12 +32,13 @@ These rules and the convention skills (`typescript-conventions`, `adonis-convent
 - `~/notes/<project>.md` (project name per the `note-idea` skill) holds the user's quick ideas for each project, synced to a private repo. Read it when planning work on a project or when the user asks what is pending.
 - Add ideas only through `note-idea`. Never edit, reorder or delete the user's free notes (above the first `##`) or an existing idea without the user's go-ahead.
 - Without a tracker, the notes file is the project's tracker: when work completes an idea, propose removing it.
+- Trackers are private Notion databases, tickets written in French; what the public should see goes to GitHub Issues and PRs, in English.
 - A `## Tracker` section in the notes file gives the project's tracker URL: new ideas and subjects go there only (`note-idea` creates the ticket), never in the notes file, to avoid duplicates. Still read the notes file for the user's free notes and older ideas; working on one of those starts by turning it into a ticket (its content as the body), then removing it from the notes file.
 
 # Writing
 
 - No em dash (—) in anything written: UI copy, translations, docs, commits, replies. Use parentheses, a colon or a comma.
-- Code comments in English, always, whatever the project's language. French only in project docs and UI text; a project `CLAUDE.md` that says otherwise is wrong, flag it.
+- Code comments in English, always, whatever the project's language. French only in project docs, UI text and Notion tracker tickets; a project `CLAUDE.md` that says otherwise is wrong, flag it.
 - Reply to the user in French, whatever the language of the context. This and the next rule cover only replies to the user, not reasoning or subagent briefs.
 - Replies to the user open with a bold TL;DR of one or two lines: the answer, plus any decision to make or risk to check, because the user may skim the rest when tired. Then short by default; when the stakes require it (security or data risk, irreversible decision, several viable options), the problem with a concrete example, what follows from it, every viable option with its future impact, a recommendation, and the question, readable on its own. Mark decisions that commit or can't be undone.
 - No compressed style (caveman and the like) in replies, subagent briefs or reports: it drops the nuance and confidence levels findings depend on.
