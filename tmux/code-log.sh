@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Read-only browser of the commits of the current branch: fzf over `git log`, with a delta-rendered preview of the selected commit.
 # Usage: code-log.sh   (meant for a tmux popup, Alt+g then c, which keeps it readable on failure with -EE)
-# Newest first, one line per commit (hash, date, subject, author); typing filters. A merge commit is shown against its first parent, so its diff is never empty.
+# Newest first, one line per commit (hash, date, subject, author); typing filters. A merge commit is shown against its first parent, so its diff is never empty. When the repository has several worktrees (those of Claude agents, for instance), it first asks which one, the most recently edited first (pick-worktree.sh).
 # Enter shows the commit in diffnav, full screen (q goes back to the list; "o" there opens less, never an editor), Esc closes.
 set -euo pipefail
+
+SCRIPT_DIRECTORY="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIRECTORY
+readonly PICK_WORKTREE_SCRIPT="$SCRIPT_DIRECTORY/pick-worktree.sh"
 
 readonly PROMPT="commit > "
 readonly HEADER="Entrée : ouvrir dans diffnav (q : revenir) · Échap : fermer"
@@ -34,5 +38,6 @@ browse_commits() {
 }
 
 check_requirements
-cd "$(git rev-parse --show-toplevel)"
+target_directory=$("$PICK_WORKTREE_SCRIPT") || exit 0
+cd -- "$target_directory"
 browse_commits

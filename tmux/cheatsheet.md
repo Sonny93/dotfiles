@@ -49,7 +49,7 @@ Lecture seule : rien ne modifie le dépôt.
 
 | Touche | Effet |
 |---|---|
-| `Alt+g` | Menu Code (sans préfixe) : `d` diff du travail en cours, `f` fichiers du repo, `r` recherche dans le contenu, `c` commits, `Échap` annule |
+| `Alt+g` | Menu Code (sans préfixe) : `d` diff du travail en cours, `f` fichiers du repo, `r` recherche dans le contenu, `c` commits, `Échap` annule ; avec plusieurs worktrees (agents Claude), un choix du worktree d'abord, le plus récent en premier |
 
 Diff en cours (diffnav, se rafraîchit tout seul, fichiers neufs inclus) :
 

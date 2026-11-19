@@ -1,8 +1,12 @@
 #!/usr/bin/env bash
 # Read-only browser of the files of the current git repository: fzf with a bat preview, nothing can be edited from it.
 # Usage: code-files.sh   (meant for a tmux popup, Alt+g then f, which keeps it readable on failure with -EE)
-# Lists the tracked files and the new untracked ones, .gitignore respected. Tracked files deleted in the working tree stay listed, with a notice as preview and nothing on Enter. Enter shows the file full screen in bat's pager (q goes back to the list), Esc closes.
+# Lists the tracked files and the new untracked ones, .gitignore respected. Tracked files deleted in the working tree stay listed, with a notice as preview and nothing on Enter. Enter shows the file full screen in bat's pager (q goes back to the list), Esc closes. When the repository has several worktrees (those of Claude agents, for instance), it first asks which one, the most recently edited first (pick-worktree.sh).
 set -euo pipefail
+
+SCRIPT_DIRECTORY="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIRECTORY
+readonly PICK_WORKTREE_SCRIPT="$SCRIPT_DIRECTORY/pick-worktree.sh"
 
 readonly PROMPT="fichier > "
 readonly HEADER="Entrée : ouvrir en plein écran (q : revenir) · Échap : fermer"
@@ -32,5 +36,6 @@ pick_file() {
 }
 
 check_requirements
-cd "$(git rev-parse --show-toplevel)"
+target_directory=$("$PICK_WORKTREE_SCRIPT") || exit 0
+cd -- "$target_directory"
 pick_file
