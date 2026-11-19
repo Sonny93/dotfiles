@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Read-only search in the content of the files of the current git repository: ripgrep results live in fzf, with a bat preview on the matched line.
 # Usage: code-search.sh   (meant for a tmux popup, Alt+g then r, which keeps it readable on failure with -EE)
-# Nothing is searched until something is typed. The query is a regex, case-insensitive unless it holds a capital letter; an invalid regex just shows no result.
+# Nothing is searched until something is typed. The query is a regex, case-insensitive unless it holds a capital letter; an invalid regex just shows no result. When the repository has several worktrees (those of Claude agents, for instance), it first asks which one, the most recently edited first (pick-worktree.sh).
 # .gitignore is respected, dotfiles are searched, .git is not. Enter shows the file full screen in bat's pager, on the matched line (q goes back to the results), Esc closes.
 set -euo pipefail
+
+SCRIPT_DIRECTORY="$(cd -- "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+readonly SCRIPT_DIRECTORY
+readonly PICK_WORKTREE_SCRIPT="$SCRIPT_DIRECTORY/pick-worktree.sh"
 
 readonly PROMPT="recherche > "
 readonly HEADER="Entrée : ouvrir à la ligne (q : revenir) · Échap : fermer"
@@ -37,5 +41,6 @@ search() {
 }
 
 check_requirements
-cd "$(git rev-parse --show-toplevel)"
+target_directory=$("$PICK_WORKTREE_SCRIPT") || exit 0
+cd -- "$target_directory"
 search
