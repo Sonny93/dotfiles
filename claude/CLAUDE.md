@@ -12,6 +12,7 @@ The main session (Opus) thinks; the `implementer` subagent (Sonnet) writes the c
 - Every `delete`, `update` or upsert not bounded by a full key gets a test where neighbouring rows (other type, other user) must survive.
 - **Split big work** into independent briefs. Run them in parallel only when they touch disjoint files.
 - **Only exception**: trivial edits of a few lines (typo, config value, one-line fix found during review) may be done inline.
+- **Separate sessions**: work the user sends to another session or conversation, whatever the wording, goes through the `background-sessions` skill (`claude --bg`, visible in the agent view), never a subagent or tmux; when unsure which one is meant, ask.
 
 # Applying These Rules
 
