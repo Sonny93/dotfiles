@@ -79,6 +79,12 @@ if (( $+commands[tmux] )); then
   compdef _t t
 fi
 
+if (( $+commands[claude] )) && [[ -d ~/dev ]]; then
+  c() {
+    (builtin cd ~/dev && claude agents "$@")
+  }
+fi
+
 TAB_TITLE_MAX_COMMAND_LENGTH=30
 
 set_tab_title() {
