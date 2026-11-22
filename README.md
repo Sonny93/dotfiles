@@ -239,6 +239,8 @@ Before replacing anything, `just claude` moves what exists to `~/.claude/backups
 - **Outside the repo**: skills installed by `npx skills` or by plugins stay outside the repo.
 - Only machine-independent, non-sensitive settings go in `claude/settings.json`.
 
+`c` opens agent view (`claude agents`, background sessions) from `~/dev`, so typing `@` in a prompt lists the projects to dispatch the session to; the shell's current folder does not change. Its arguments go to `claude agents` (for example `c --cwd ~/dev/app`). `Enter` on a row opens the session and `←` goes back to the list, so there is no separate `attach` shortcut. The base settings keep transcripts for 10 years (`cleanupPeriodDays: 3650`, since `0` is refused): a session deleted from the list stays readable and resumable with `claude --resume`.
+
 ## Security
 
 The repo is public and **never** contains a secret, an identity or server info:

@@ -239,6 +239,8 @@ Avant de remplacer quoi que ce soit, `just claude` déplace l'existant dans `~/.
 - **Hors repo** : les skills installés par `npx skills` ou par des plugins restent hors du repo.
 - Seuls les réglages indépendants de la machine et non sensibles vont dans `claude/settings.json`.
 
+`c` ouvre la vue des agents (`claude agents`, sessions en arrière-plan) depuis `~/dev`, pour que `@` tapé dans un prompt liste les projets où lancer la session ; le dossier courant du shell ne change pas. Ses arguments vont à `claude agents` (par exemple `c --cwd ~/dev/app`). `Entrée` sur une ligne ouvre la session et `←` revient à la liste, d'où l'absence de raccourci `attach` séparé. Les réglages de base gardent les transcripts 10 ans (`cleanupPeriodDays: 3650`, car `0` est refusé) : une session supprimée de la liste reste lisible et reprenable avec `claude --resume`.
+
 ## Sécurité
 
 Le repo est public et ne contient **jamais** de secret, d'identité ni d'infos sur les serveurs :
