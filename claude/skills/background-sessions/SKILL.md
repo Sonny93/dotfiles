@@ -19,12 +19,13 @@ The user follows sessions from the agent view (`claude agents`) and Remote Contr
 ## 1. Decide it is a session request
 
 - Words about a session or a conversation (session, conversation, nouvelle conversation, autre session, à part) mean a background session. Nothing else does.
+- Several unrelated subjects handed at once for work (for example several Notion tickets through `notion-ticket`) also count as a session request, without asking, even when the words don't mention a session.
 - "Un agent", "en parallèle", "délègue" alone are ambiguous: ask whether the user wants a separate session or a subagent of this conversation, unless the context already settles it.
 - Any other doubt (how many sessions, which subject goes where, one session or several): ask before launching.
 
 ## 2. One session per subject
 
-The user names the subjects; one session each, never a split of your own. A subject can be a ticket, a study, a fix, a question. When two subjects will likely edit the same files, say so and ask whether to run them in parallel or one after the other.
+The user names the subjects; one session each, never a split of your own. A subject can be a ticket, a study, a fix, a question. Related subjects (same feature, same files, a dependency, shared context) stay in one session rather than being split. When the user handed the work to this conversation (as `notion-ticket` does with several tickets), this session may keep one subject for itself and only the others are launched. When two subjects will likely edit the same files, say so and ask whether to run them in parallel or one after the other.
 
 ## 3. Write each prompt
 
