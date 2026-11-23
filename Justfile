@@ -13,13 +13,29 @@ default: help
 help:
     @just --list --unsorted
 
+# Record the machine role (dev or server) that `update` re-applies
+[private]
+record-role role:
+    #!/usr/bin/env bash
+    set -euo pipefail
+    case "{{role}}" in
+        dev|server) ;;
+        *)
+            echo "ERROR: role must be dev or server, got '{{role}}'." >&2
+            exit 1
+            ;;
+    esac
+    config_directory="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles"
+    mkdir -p "$config_directory"
+    printf '%s\n' "{{role}}" >"$config_directory/role"
+
 # Set up or update a dev machine
-dev: system build-deps shell mise tmux git gh-auth notes claude doctor-dev
+dev: (record-role 'dev') system build-deps shell mise tmux git gh-auth notes claude doctor-dev
     #!/usr/bin/env bash
     echo "Dev setup done. Reload the shell with 'exec zsh'."
 
 # Set up or update a server
-server: system shell doctor-server
+server: (record-role 'server') system shell doctor-server
     #!/usr/bin/env bash
     echo "Server setup done. Reload the shell with 'exec zsh'."
 
@@ -322,6 +338,16 @@ doctor-server:
             warn "$tool missing, run 'just shell'"
         fi
     done
+    config_directory="${XDG_CONFIG_HOME:-$HOME/.config}/dotfiles"
+    recorded_role="$(cat "$config_directory/role" 2>/dev/null || true)"
+    if [ "$recorded_role" = "dev" ] || [ "$recorded_role" = "server" ]; then
+        ok "machine role recorded: $recorded_role"
+    else
+        warn "no machine role recorded, run 'just dev' or 'just server'"
+    fi
+    if [ -x "$config_directory/update-hook" ]; then
+        info "update hands off to $(readlink -f "$config_directory/update-hook")"
+    fi
 
 # Run the script tests: tmux ones on an isolated tmux server (needs tmux), the Claude status line, the Claude hooks and the shared scripts
 test:

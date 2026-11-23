@@ -34,6 +34,8 @@ zsh, git, mise, tmux et Starship, répartis par machine : machine de dev et serv
 | Accès GitHub | Jeton `gh` sur chaque machine de dev (machines locales comprises) | Jamais |
 | Config Claude Code (CLAUDE.md, RTK.md, agents, skills, réglages de base) | `claude/` | Oui |
 | Identifiants Claude Code, jetons MCP, mémoire, historique | `~/.claude/` et `~/.claude.json` sur chaque machine de dev | Jamais |
+| Rôle de la machine (`dev` ou `server`), écrit par `just dev` / `just server` et lu par `update` | `~/.config/dotfiles/role` | Jamais |
+| Délégation optionnelle de `update` : un exécutable qu'un dépôt privé peut installer, il remplace la recette du rôle et doit la lancer lui-même | `~/.config/dotfiles/update-hook` | Jamais |
 
 Le repo est public : on le clone en HTTPS, sans clé ni compte.
 
@@ -174,8 +176,8 @@ exec zsh
 
 | Commande | Rôle | Dev | Serveur |
 |---|---|---|---|
-| `just dev` | Installer / mettre à jour une machine de dev : `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
-| `just server` | Installer / mettre à jour un serveur : `system`, `shell`, `doctor-server` | | ✓ |
+| `just dev` | Installer / mettre à jour une machine de dev, et enregistrer le rôle `dev` dans `~/.config/dotfiles/role` : `system`, `build-deps`, `shell`, `mise`, `tmux`, `git`, `gh-auth`, `notes`, `claude`, `doctor-dev` | ✓ | |
+| `just server` | Installer / mettre à jour un serveur, et enregistrer le rôle `server` dans `~/.config/dotfiles/role` : `system`, `shell`, `doctor-server` | | ✓ |
 | `just system` | Mettre à jour les paquets système (apt ou pacman) | ✓ | ✓ |
 | `just build-deps` | Installer les paquets système pour compiler tmux (Debian : `build-essential`, `libncurses-dev`, `bison` ; Arch : `base-devel`, `ncurses`, `bison`) | ✓ | |
 | `just shell` | zsh, Starship et les outils mise du shell | ✓ | ✓ |
@@ -192,7 +194,7 @@ exec zsh
 
 ## Shell
 
-zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). La commande `update` met à jour le système (`apt` ou `pacman`), puis les outils (`mise upgrade`), puis relance les Claude Code inactifs dans tmux (`tmux/restart-claude.sh`). Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit. Tous les outils viennent de mise, avec une seule config pour toutes les machines.
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). La commande `update` (`scripts/update.sh`) commence par tirer le repo dotfiles, en fast-forward uniquement : elle saute le pull avec un avertissement quand le repo n'est pas sur `main`, a des modifications suivies non commitées, n'a pas d'upstream ou a divergé, et continue sans pull hors ligne. Quand des commits ont été fusionnés, elle se relance pour exécuter la nouvelle version. Elle rejoue ensuite la recette du rôle enregistré (`just dev` ou `just server`, donc les paquets système et les outils mise sont mis à jour), ou lance `~/.config/dotfiles/update-hook` quand un exécutable existe (il remplace la recette du rôle et doit la lancer lui-même). Enfin, elle relance les Claude Code inactifs dans tmux (`tmux/restart-claude.sh`). Sans rôle enregistré ni hook, lancer `just dev` ou `just server` une fois. Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit. Tous les outils viennent de mise, avec une seule config pour toutes les machines.
 
 Chaque machine reçoit une pastille colorée (emoji) calculée à partir de son nom d'hôte, affichée dans le titre d'onglet et dans le prompt : aucune configuration. En cas de collision entre deux machines, renommer l'une d'elles ou ajouter `export MACHINE_BADGE=🟢` dans `~/.zshenv` sur cette machine.
 
