@@ -5,17 +5,45 @@ description: >
   work, keep the ticket updated, stop and wait for the user's go-ahead
   before committing anything, then move it to Done once committed. Use when the user says "occupe-toi
   du ticket notion <id>", "prends le ticket <id>", or otherwise hands off
-  a Notion ticket/card to work on. Requires a ticket ID or URL as
-  argument: if none is given, ask for it and do nothing else.
+  one or several Notion tickets/cards to work on. When several unrelated
+  tickets are handed at once, this session keeps one subject and the
+  others run in their own background sessions. Requires at least one
+  ticket ID or URL, or a criterion to pick tickets from the tracker
+  ("les moins coûteux"): with neither, ask for it and do nothing else.
 ---
 
 # Notion Ticket
 
-Takes one argument: a Notion ticket ID, page ID, or URL. If no ticket was
-given when this skill was invoked, ask for it and stop: don't guess
-which ticket, don't list the database and pick one yourself.
+Takes one or several arguments: Notion ticket IDs, page IDs, or URLs. If
+no ticket was given when this skill was invoked, ask for it and stop:
+don't guess which ticket, don't list the database and pick one yourself.
 
 Uses the `mcp__claude_ai_Notion__*` tools (Notion connector from claude.ai).
+
+## Several tickets
+
+When more than one ticket is handed at once, split them before starting:
+
+- Group them into subjects. Related tickets (same feature or area, likely
+  the same files, one depends on another, or they need the same context)
+  form one subject, worked one after the other in the same session.
+  Clearly unrelated tickets are separate subjects. When unsure, keep them
+  together and say so in the report so the user can split them.
+- This session keeps the first subject and works it with the process
+  below. Every other subject goes to its own background session through
+  the `background-sessions` skill: one prompt per subject listing its
+  ticket URLs, each loading this skill there.
+- Handing several tickets at once is the go-ahead to launch those
+  sessions: don't ask first, unless it would make more than 4 sessions in
+  total including this one (each session costs quota); then ask.
+- Before starting your own work, tell the user which session handles which
+  tickets (session name, ticket titles) and which subject this session
+  kept.
+- When the user asks to choose tickets from the tracker by a criterion
+  (for example "the cheapest ones"), list the chosen tickets with one line
+  of reason each in that same message, then proceed as above: their
+  criterion is the go-ahead. With no ticket and no criterion, the rule
+  above still applies: ask and stop.
 
 ## Process
 
