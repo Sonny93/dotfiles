@@ -40,15 +40,21 @@ case "\$*" in
     *) echo "just \$*" >>"$SANDBOX/calls" ;;
 esac
 STUB
-    printf '#!/usr/bin/env bash\necho "sudo $*" >>"%s"\n' "$SANDBOX/sudo_calls" >"$SANDBOX/bin/sudo"
+    cat >"$SANDBOX/bin/sudo" <<STUB
+#!/usr/bin/env bash
+echo "sudo \$*" >>"$SANDBOX/sudo_calls"
+[ "\$*" = "-n true" ] && [ -e "$SANDBOX/sudo_denied" ] && exit 1
+[ "\$*" = "-v" ] && [ -e "$SANDBOX/sudo_login_fails" ] && exit 1
+exit 0
+STUB
     printf '#!/usr/bin/env bash\nexit 1\n' >"$SANDBOX/bin/tmux"
     printf '#!/usr/bin/env bash\nexit 1\n' >"$SANDBOX/bin/gh"
     chmod +x "$SANDBOX/bin/just" "$SANDBOX/bin/tmux" "$SANDBOX/bin/sudo" "$SANDBOX/bin/gh"
-    printf '%s' '{"recipes":{"dev":{"dependencies":[{"recipe":"record-role","arguments":["dev"]},{"recipe":"system","arguments":[]},{"recipe":"gh-auth","arguments":[]}]}}}' >"$SANDBOX/dump.json"
+    printf '%s' '{"recipes":{"dev":{"dependencies":[{"recipe":"record-role","arguments":["dev"]},{"recipe":"system","arguments":[]},{"recipe":"build-deps","arguments":[]},{"recipe":"gh-auth","arguments":[]},{"recipe":"doctor-dev","arguments":[]}]}}}' >"$SANDBOX/dump.json"
 }
 
 setup_scenario() {
-    rm -rf "$SANDBOX/origin.git" "$SANDBOX/clone" "$SANDBOX/peer" "$SANDBOX/config" "$SANDBOX/state" "$SANDBOX/calls" "$SANDBOX/sudo_calls"
+    rm -rf "$SANDBOX/origin.git" "$SANDBOX/clone" "$SANDBOX/peer" "$SANDBOX/config" "$SANDBOX/state" "$SANDBOX/calls" "$SANDBOX/sudo_calls" "$SANDBOX/sudo_denied" "$SANDBOX/sudo_login_fails"
     mkdir -p "$SANDBOX/config/dotfiles"
     touch "$SANDBOX/calls" "$SANDBOX/sudo_calls"
     git init -q --bare -b main "$SANDBOX/origin.git"
@@ -260,18 +266,56 @@ test_sudo_session_ends_on_exit() {
     report "should invalidate the sudo timestamp when the run ends" "$detail"
 }
 
-test_quiet_role_run_goes_step_by_step() {
-    local detail=""
+run_quiet_dev_role() {
     setup_scenario
     echo dev >"$SANDBOX/config/dotfiles/role"
     update_arguments=()
     run_update
     update_arguments=(--verbose)
+}
+
+test_quiet_role_run_goes_step_by_step() {
+    local detail="" justfile="$SANDBOX/clone/Justfile"
+    run_quiet_dev_role
     [[ "$exit_status" == 0 ]] || detail="exit status $exit_status"
-    [[ "$stdout" == *"✓ record-role dev"* && "$stdout" == *"✓ system"* ]] || detail="$detail stdout [$stdout]"
+    [[ "$stdout" == *"✓ record-role dev"* && "$stdout" == *"✓ system"* && "$stdout" == *"✓ build-deps"* ]] || detail="$detail stdout [$stdout]"
     [[ "$stdout" == *"gh not authenticated, skipped gh-auth"* ]] || detail="$detail no gh skip warning"
-    [[ "$calls" == "just -f $SANDBOX/clone/Justfile record-role dev"$'\n'"just -f $SANDBOX/clone/Justfile system" ]] || detail="$detail calls [$calls]"
-    report "should run the dev recipe steps one by one and skip gh-auth when gh is not logged in" "$detail"
+    [[ "$calls" == "just -f $justfile record-role dev"$'\n'"just -f $justfile system"$'\n'"just -f $justfile build-deps"$'\n'"just -f $justfile doctor-dev" ]] || detail="$detail calls [$calls]"
+    report "should run the role steps one by one, skip gh-auth and run the doctor once at the end" "$detail"
+}
+
+test_cached_sudo_ticket_is_not_asked_again() {
+    local detail=""
+    run_quiet_dev_role
+    ! grep -qx 'sudo -v' <<<"$sudo_calls" || detail="sudo -v was called [$sudo_calls]"
+    report "should not ask for the sudo password when the ticket is cached" "$detail"
+}
+
+test_missing_sudo_ticket_is_asked_once() {
+    local detail=""
+    setup_scenario
+    touch "$SANDBOX/sudo_denied"
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$(grep -cx 'sudo -v' <<<"$sudo_calls")" == 1 ]] || detail="sudo calls [$sudo_calls]"
+    [[ "$stdout" == *"✓ build-deps"* ]] || detail="$detail stdout [$stdout]"
+    report "should run one visible sudo -v before the root steps when no ticket is cached" "$detail"
+}
+
+test_failed_sudo_login_skips_root_steps() {
+    local detail=""
+    setup_scenario
+    touch "$SANDBOX/sudo_denied" "$SANDBOX/sudo_login_fails"
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$calls" != *"build-deps"* ]] || detail="build-deps ran [$calls]"
+    [[ "$stdout" == *"skipped build-deps, run 'just build-deps'"* ]] || detail="$detail stdout [$stdout]"
+    [[ "$exit_status" == 0 ]] || detail="$detail exit status $exit_status"
+    report "should skip the root steps with a WARN when the sudo login fails" "$detail"
 }
 
 write_stubs
@@ -284,6 +328,9 @@ test_failing_hook_is_reported
 test_old_runs_are_pruned
 test_sudo_session_ends_on_exit
 test_quiet_role_run_goes_step_by_step
+test_cached_sudo_ticket_is_not_asked_again
+test_missing_sudo_ticket_is_asked_once
+test_failed_sudo_login_skips_root_steps
 test_hook_runs_and_not_just
 test_server_role_runs_just
 test_missing_role_fails

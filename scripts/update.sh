@@ -24,6 +24,9 @@ readonly STATE_DIRECTORY="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/update"
 readonly KEPT_RUN_FILES=14
 readonly SUDO_REFRESH_SECONDS=60
 readonly USAGE_STATUS=2
+readonly FETCH_TIMEOUT_SECONDS=30
+readonly FETCH_LOW_SPEED_LIMIT=1000
+readonly FETCH_LOW_SPEED_SECONDS=20
 
 IS_VERBOSE=0
 KEEPALIVE_PID=""
@@ -40,6 +43,12 @@ print_banner() {
 
 git_dotfiles() {
     GIT_TERMINAL_PROMPT=0 git -C "$DOTFILES_DIRECTORY" "$@"
+}
+
+git_fetch_dotfiles() {
+    GIT_TERMINAL_PROMPT=0 timeout "$FETCH_TIMEOUT_SECONDS" git \
+        -c "http.lowSpeedLimit=$FETCH_LOW_SPEED_LIMIT" -c "http.lowSpeedTime=$FETCH_LOW_SPEED_SECONDS" \
+        -C "$DOTFILES_DIRECTORY" fetch --quiet
 }
 
 parse_arguments() {
@@ -117,7 +126,7 @@ can_fast_forward() {
         warn "dotfiles has no upstream branch, skipping the pull"
         return 1
     fi
-    if ! git_dotfiles fetch --quiet; then
+    if ! git_fetch_dotfiles; then
         warn "git fetch failed (offline?), continuing without pulling"
         return 1
     fi
@@ -150,6 +159,14 @@ run_pull_step() {
     fi
 }
 
+run_role_steps() {
+    local role="$1" steps_status=0 doctor_status=0
+    env DOTFILES_DIRECTORY="$DOTFILES_DIRECTORY" "$SCRIPT_DIRECTORY/dev-update.sh" "$role" || steps_status=$?
+    run_quiet_step "doctor-$role" just -f "$DOTFILES_DIRECTORY/Justfile" "doctor-$role" || doctor_status=$?
+    [ "$steps_status" -eq 0 ] || return "$steps_status"
+    return "$doctor_status"
+}
+
 run_setup_recipe() {
     local role
     role="$(cat "$ROLE_PATH" 2>/dev/null || true)"
@@ -159,7 +176,7 @@ run_setup_recipe() {
         return 1
     fi
     if [ -n "${UPDATE_LOG:-}" ]; then
-        env DOTFILES_DIRECTORY="$DOTFILES_DIRECTORY" "$SCRIPT_DIRECTORY/dev-update.sh" "$role"
+        run_role_steps "$role"
         return
     fi
     run_quiet_step "just $role" just -f "$DOTFILES_DIRECTORY/Justfile" "$role"

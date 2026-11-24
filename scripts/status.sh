@@ -1,5 +1,8 @@
 # shellcheck shell=bash
 # Status helpers (ok, warn, info, check_link) for doctor recipes and quiet update steps (run_quiet_step, run_visible_step, report_line); meant to be sourced.
+#   run_quiet_step runs in a new session (setsid, no controlling terminal: the tty-bound sudo ticket is unusable there);
+#   run_quiet_root_step keeps the terminal for steps that call sudo with the cached ticket.
+#   Timeout: UPDATE_STEP_TIMEOUT overrides everything, else STEP_TIMEOUT_SECONDS set for one call, else 600 seconds.
 #   UPDATE_LOG (run log) and UPDATE_REPORT (WARN/ERROR/REBOOT lines) are set by update.sh; both unset means plain verbose behavior.
 readonly COLOR_RED=$'\033[31m'
 readonly COLOR_GREEN=$'\033[32m'
@@ -33,7 +36,8 @@ check_link() {
     fi
 }
 
-readonly DEFAULT_STEP_TIMEOUT_SECONDS=1800
+readonly DEFAULT_STEP_TIMEOUT_SECONDS=600
+readonly KILL_GRACE_SECONDS=30
 readonly FAILURE_EXCERPT_LINES=15
 readonly FAILURE_PATTERN='error|fatal|conflict|failed'
 
@@ -75,15 +79,33 @@ print_failure_excerpt() {
     echo "    log: $UPDATE_LOG"
 }
 
-run_logged_command() {
-    local timeout_seconds="${UPDATE_STEP_TIMEOUT:-$DEFAULT_STEP_TIMEOUT_SECONDS}"
-    env GIT_TERMINAL_PROMPT=0 LC_ALL=C timeout --foreground "$timeout_seconds" "$@" \
+resolve_step_timeout() {
+    echo "${UPDATE_STEP_TIMEOUT:-${STEP_TIMEOUT_SECONDS:-$DEFAULT_STEP_TIMEOUT_SECONDS}}"
+}
+
+run_detached_command() {
+    env GIT_TERMINAL_PROMPT=0 LC_ALL=C setsid -w timeout -k "$KILL_GRACE_SECONDS" "$(resolve_step_timeout)" "$@" \
         </dev/null >>"$UPDATE_LOG" 2>&1
 }
 
-run_quiet_step() {
-    local label="$1" log_offset command_status=0
-    shift
+run_attached_command() {
+    env GIT_TERMINAL_PROMPT=0 LC_ALL=C timeout --foreground -k "$KILL_GRACE_SECONDS" "$(resolve_step_timeout)" "$@" \
+        </dev/null >>"$UPDATE_LOG" 2>&1
+}
+
+begin_step_progress() {
+    [ -t 1 ] && [ -z "${NO_COLOR:-}" ] || return 0
+    printf '… %s' "$*"
+}
+
+end_step_progress() {
+    [ -t 1 ] && [ -z "${NO_COLOR:-}" ] || return 0
+    printf '\r\033[K'
+}
+
+run_logged_step() {
+    local runner="$1" label="$2" log_offset command_status=0
+    shift 2
     if [ -z "${UPDATE_LOG:-}" ]; then
         print_step_header "$label"
         "$@" || command_status=$?
@@ -92,7 +114,9 @@ run_quiet_step() {
     fi
     append_log_header "$label"
     log_offset="$(stat -c %s "$UPDATE_LOG")"
-    run_logged_command "$@" || command_status=$?
+    begin_step_progress "$label"
+    "$runner" "$@" || command_status=$?
+    end_step_progress
     if [ "$command_status" -eq 0 ]; then
         print_step_ok "$label"
         return 0
@@ -102,6 +126,10 @@ run_quiet_step() {
     report_line ERROR "$label"
     return "$command_status"
 }
+
+run_quiet_step() { run_logged_step run_detached_command "$@"; }
+
+run_quiet_root_step() { run_logged_step run_attached_command "$@"; }
 
 run_visible_step() {
     local label="$1" command_status=0

@@ -5,6 +5,9 @@
 #   DOTFILES_DIRECTORY overrides the repo location (tests); meant to run under update.sh (UPDATE_LOG, UPDATE_REPORT)
 #   prompting recipes: `system` runs attached to the terminal (it asks to apply the upgrade), `gh-auth` is skipped
 #   with a WARN when gh is not logged in (its login is interactive); every other step runs with stdin closed
+#   root recipes (`build-deps`) keep the terminal so sudo can use its cached ticket; when no ticket is cached one visible
+#   `sudo -v` asks for it first, and the root recipes are skipped with a WARN when it fails
+#   `mise` gets a 1800 second timeout, other steps the default; `doctor-*` recipes are skipped (update.sh runs the doctor once)
 set -euo pipefail
 
 SCRIPT_PATH="$(readlink -f "${BASH_SOURCE[0]}")"
@@ -13,7 +16,13 @@ readonly SCRIPT_DIRECTORY="${SCRIPT_PATH%/*}"
 readonly DOTFILES_DIRECTORY="${DOTFILES_DIRECTORY:-${SCRIPT_DIRECTORY%/*}}"
 readonly JUSTFILE_PATH="$DOTFILES_DIRECTORY/Justfile"
 readonly VISIBLE_RECIPES=" system "
+readonly ROOT_RECIPES=" build-deps "
+readonly LONG_RECIPES=" mise "
 readonly AUTH_RECIPE="gh-auth"
+readonly LONG_STEP_TIMEOUT_SECONDS=1800
+readonly SUDO_LOGIN_TIMEOUT_SECONDS=120
+readonly GH_TIMEOUT_SECONDS=30
+HAS_ROOT_ACCESS=""
 
 # shellcheck source=status.sh
 # shellcheck source-path=SCRIPTDIR
@@ -26,17 +35,45 @@ list_steps() {
 }
 
 skip_unauthenticated_gh() {
-    command -v gh >/dev/null && gh auth status >/dev/null 2>&1 && return 1
+    command -v gh >/dev/null && timeout "$GH_TIMEOUT_SECONDS" gh auth status >/dev/null 2>&1 && return 1
     warn "gh not authenticated, skipped $AUTH_RECIPE, run 'just $AUTH_RECIPE'"
     return 0
+}
+
+ensure_root_access() {
+    if [ -z "$HAS_ROOT_ACCESS" ]; then
+        HAS_ROOT_ACCESS=no
+        if sudo -n true 2>/dev/null; then
+            HAS_ROOT_ACCESS=yes
+        else
+            echo "Mot de passe sudo requis pour les étapes root :"
+            ! timeout --foreground "$SUDO_LOGIN_TIMEOUT_SECONDS" sudo -v || HAS_ROOT_ACCESS=yes
+        fi
+    fi
+    [ "$HAS_ROOT_ACCESS" = yes ]
 }
 
 run_step() {
     local recipe="$1"
     shift
     local label="$recipe${*:+ $*}"
+    if [[ "$recipe" == doctor-* ]]; then
+        return 0
+    fi
     if [ "$recipe" = "$AUTH_RECIPE" ] && skip_unauthenticated_gh; then
         return 0
+    fi
+    if [[ "$ROOT_RECIPES" == *" $recipe "* ]]; then
+        if ! ensure_root_access; then
+            warn "no sudo ticket, skipped $recipe, run 'just $recipe'"
+            return 0
+        fi
+        run_quiet_root_step "$label" just -f "$JUSTFILE_PATH" "$recipe" "$@"
+        return
+    fi
+    if [[ "$LONG_RECIPES" == *" $recipe "* ]]; then
+        STEP_TIMEOUT_SECONDS="$LONG_STEP_TIMEOUT_SECONDS" run_quiet_step "$label" just -f "$JUSTFILE_PATH" "$recipe" "$@"
+        return
     fi
     if [[ "$VISIBLE_RECIPES" == *" $recipe "* ]]; then
         run_visible_step "$label" just -f "$JUSTFILE_PATH" "$recipe" "$@"

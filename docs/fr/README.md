@@ -225,7 +225,11 @@ Fichiers, dans `${XDG_STATE_HOME:-~/.local/state}/dotfiles/update` (mode 700) :
 Sécurité :
 
 - Un maintien de sudo rafraîchit les droits toutes les 60 secondes pendant l'exécution, et `sudo -k` tourne à la sortie.
-- Les étapes silencieuses tournent avec stdin fermé, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C` et un délai maximal (`UPDATE_STEP_TIMEOUT`, 1800 secondes par défaut) : rien n'attend sur une invite cachée. Les étapes qui peuvent poser une question restent attachées au terminal : `system` (la confirmation de la mise à jour) et le hook. `gh-auth` est sautée avec un `WARN` quand `gh` n'est pas connecté (lancer `just gh-auth`).
+- Les étapes silencieuses tournent avec stdin fermé, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, dans une nouvelle session sans terminal de contrôle (`setsid`) et sous `timeout` (600 secondes par défaut, 1800 pour `mise` ; `UPDATE_STEP_TIMEOUT` remplace les deux, et un délai dépassé tue tout le groupe de processus). Sans terminal, sudo ne peut pas utiliser le ticket lié au terminal que le maintien garde valide (`timestamp_type`, voir `man sudoers` : sans terminal l'enregistrement dépend du PID parent, donc un script d'installation tiers qui appelle `sudo -n` échoue). Une ligne `… <étape>` s'affiche en direct sur un terminal et est remplacée par la ligne de résultat.
+- Les étapes qui appellent sudo (`build-deps`, la suppression des orphelins) gardent le terminal. Sans ticket sudo en cache, `dev-update.sh` le demande une fois (`sudo -v`, 120 secondes) avant la première, et saute les étapes root avec un `WARN` qui nomme la recette si cela échoue.
+- Les étapes qui peuvent poser une question restent attachées au terminal : `system` (la confirmation de la mise à jour) et le hook. `gh-auth` est sautée avec un `WARN` quand `gh` n'est pas connecté (lancer `just gh-auth`).
+- Les appels réseau hors étapes ont leur propre délai : `git fetch` 30 secondes (et abandon sous 1000 octets/s pendant 20 secondes), `checkupdates` et `paru -Pw` 60 secondes, `gh auth status` 30 secondes.
+- Le doctor (`just doctor-<rôle>`) tourne une fois à la fin du chemin sans hook ; `dev-update.sh` saute les recettes `doctor-*`.
 - `scripts/dev-update.sh [dev|server]` lit les étapes dans les dépendances de la recette `dev` (ou `server`) du Justfile (`just --dump`) : la liste n'est déclarée qu'une fois.
 
 ### Mise à jour système Arch (mode silencieux)
@@ -236,7 +240,7 @@ Sur Arch, `just system` sous un `update` silencieux fait ceci (`scripts/arch-upg
 2. Affiche les nouvelles Arch non lues (`paru -Pw`) quand paru est installé.
 3. Pose une seule question, `Appliquer ? [O/n]` (oui par défaut). Répondre non, ou ne pas avoir de terminal, saute la mise à jour avec un `WARN`.
 4. Refuse avec un `ERROR` quand `/var/lib/pacman/db.lck` existe.
-5. Lance `pacman -Syu --noconfirm` comme unité systemd transitoire (`dotfiles-pacman-<horodatage>`) sous `systemd-inhibit` (arrêt, veille et capot bloqués). L'unité survit à Ctrl+C, à un terminal fermé et à une déconnexion : le terminal ne fait que suivre le journal root `/var/log/dotfiles/pacman-<horodatage>.log`, et Ctrl+C arrête le suivi, jamais la mise à jour (le message donne le journal à suivre).
+5. Lance `pacman -Syu --noconfirm` comme unité systemd transitoire (`dotfiles-pacman-<horodatage>`) sous `systemd-inhibit` (arrêt, veille et capot bloqués), avec `Nice=10` et une priorité d'E/S best-effort 7. Les journaux root `/var/log/dotfiles/pacman-*.log` sont réduits aux 14 plus récents. L'unité survit à Ctrl+C, à un terminal fermé et à une déconnexion : le terminal ne fait que suivre le journal root `/var/log/dotfiles/pacman-<horodatage>.log`, et Ctrl+C arrête le suivi, jamais la mise à jour (le message donne le journal à suivre).
 6. Affiche `✓` ou `✗`. En cas d'échec : les lignes de conflit et d'erreur et le chemin du journal root. Les lignes `warning:` (notamment `.pacnew` et `.pacsave`) deviennent des `WARN`, et une ligne `REBOOT` est ajoutée quand le hook CachyOS dit `Reboot is recommended` ou que les modules du noyau en cours ont disparu.
 7. Liste les paquets orphelins sur une ligne, demande une fois (`Supprimer les orphelins ? [O/n]`) et les supprime, sortie dans le journal d'exécution.
 

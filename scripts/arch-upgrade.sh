@@ -14,6 +14,9 @@ readonly PACMAN_LOCK_PATH="/var/lib/pacman/db.lck"
 readonly EXIT_SENTINEL="DOTFILES_PACMAN_EXIT"
 readonly NO_UPDATES_STATUS=2
 readonly POLL_SECONDS=1
+readonly NETWORK_TIMEOUT_SECONDS=60
+readonly KEPT_PACMAN_LOGS=14
+readonly PRUNE_SCRIPT='find "$1" -maxdepth 1 -type f -name "pacman-*.log" | sort | head -n "-$2" | xargs -r rm -f --'
 readonly INTERRUPTED_STATUS=130
 readonly NO_TERMINAL_STATUS=2
 readonly APPLY_PROMPT="Appliquer ? [O/n]"
@@ -43,7 +46,7 @@ confirm() {
 
 has_pending_updates() {
     local checkupdates_status=0
-    checkupdates >/dev/null 2>&1 || checkupdates_status=$?
+    timeout "$NETWORK_TIMEOUT_SECONDS" checkupdates >/dev/null 2>&1 || checkupdates_status=$?
     case "$checkupdates_status" in
         0) return 0 ;;
         "$NO_UPDATES_STATUS") return 1 ;;
@@ -60,7 +63,7 @@ read_transaction() {
 show_news() {
     command -v paru >/dev/null || return 0
     local news
-    news="$(paru -Pw 2>/dev/null)" || return 0
+    news="$(timeout "$NETWORK_TIMEOUT_SECONDS" paru -Pw 2>/dev/null)" || return 0
     [ -z "$news" ] || printf 'Arch news:\n%s\n' "$news"
 }
 
@@ -74,7 +77,9 @@ refuse_when_locked() {
 start_unit() {
     local unit="$1" pacman_log="$2"
     sudo install -d -m 755 -o root -g root "$PACMAN_LOG_DIRECTORY"
+    sudo sh -c "$PRUNE_SCRIPT" prune-logs "$PACMAN_LOG_DIRECTORY" "$((KEPT_PACMAN_LOGS - 1))"
     sudo systemd-run --quiet --collect --unit="$unit" --setenv=LC_ALL=C \
+        --property=Nice=10 --property=IOSchedulingClass=best-effort --property=IOSchedulingPriority=7 \
         --property="StandardOutput=append:$pacman_log" \
         /bin/sh -c "$UNIT_SCRIPT" dotfiles-pacman "$EXIT_SENTINEL"
 }
@@ -196,7 +201,7 @@ remove_orphans() {
         warn "orphan packages kept, run 'just system' to remove them"
         return 0
     fi
-    run_quiet_step "remove orphan packages" sudo pacman -Rns --noconfirm "${orphans[@]}"
+    run_quiet_root_step "remove orphan packages" sudo pacman -Rns --noconfirm "${orphans[@]}"
 }
 
 preview_transaction() {

@@ -225,7 +225,11 @@ Files, in `${XDG_STATE_HOME:-~/.local/state}/dotfiles/update` (mode 700):
 Safety:
 
 - A sudo keep-alive refreshes the credentials every 60 seconds during the run, and `sudo -k` runs on exit.
-- Quiet steps run with stdin closed, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C` and a timeout (`UPDATE_STEP_TIMEOUT`, 1800 seconds by default), so nothing waits on a hidden prompt. Steps that may ask something run attached to the terminal: `system` (the upgrade confirmation) and the update hook. `gh-auth` is skipped with a `WARN` when `gh` is not logged in (run `just gh-auth`).
+- Quiet steps run with stdin closed, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, in a new session without a controlling terminal (`setsid`) and under `timeout` (600 seconds by default, 1800 for `mise`; `UPDATE_STEP_TIMEOUT` overrides both, and a timeout kills the whole process group). Without a terminal, sudo cannot use the terminal-bound ticket kept alive by the keep-alive (`timestamp_type`, see `man sudoers`: with no terminal the record is keyed by parent process id, so a third-party install script calling `sudo -n` fails). A live `… <step>` line is shown on a terminal and replaced by the result line.
+- Steps that call sudo (`build-deps`, the orphan removal) keep the terminal. When no sudo ticket is cached, `dev-update.sh` asks once (`sudo -v`, 120 seconds) before the first one and skips the root steps with a `WARN` naming the recipe if that fails.
+- Steps that may ask something run attached to the terminal: `system` (the upgrade confirmation) and the update hook. `gh-auth` is skipped with a `WARN` when `gh` is not logged in (run `just gh-auth`).
+- Network calls outside steps have their own timeouts: `git fetch` 30 seconds (and aborts below 1000 bytes/s for 20 seconds), `checkupdates` and `paru -Pw` 60 seconds, `gh auth status` 30 seconds.
+- The doctor (`just doctor-<role>`) runs once at the end of the non-hook path; `dev-update.sh` skips `doctor-*` recipes.
 - `scripts/dev-update.sh [dev|server]` reads the steps from the `dev` (or `server`) recipe dependencies in the Justfile (`just --dump`), so the list is declared once.
 
 ### Arch system upgrade (quiet mode)
@@ -236,7 +240,7 @@ On Arch, `just system` under a quiet `update` does this (`scripts/arch-upgrade.s
 2. Shows the unread Arch news (`paru -Pw`) when paru is installed.
 3. Asks one question, `Appliquer ? [O/n]` (default yes). Answering no, or having no terminal, skips the upgrade with a `WARN`.
 4. Refuses with an `ERROR` when `/var/lib/pacman/db.lck` exists.
-5. Runs `pacman -Syu --noconfirm` as a transient systemd unit (`dotfiles-pacman-<timestamp>`) under `systemd-inhibit` (shutdown, sleep and lid switch blocked). The unit survives Ctrl+C, a closed terminal and a logout: the terminal only follows the root-owned log `/var/log/dotfiles/pacman-<timestamp>.log`, and Ctrl+C there stops the following, never the upgrade (the message gives the log to follow).
+5. Runs `pacman -Syu --noconfirm` as a transient systemd unit (`dotfiles-pacman-<timestamp>`) under `systemd-inhibit` (shutdown, sleep and lid switch blocked), with `Nice=10` and best-effort I/O priority 7. The root logs `/var/log/dotfiles/pacman-*.log` are pruned to the 14 newest. The unit survives Ctrl+C, a closed terminal and a logout: the terminal only follows the root-owned log `/var/log/dotfiles/pacman-<timestamp>.log`, and Ctrl+C there stops the following, never the upgrade (the message gives the log to follow).
 6. Prints `✓` or `✗`. On failure it shows the conflict and error lines and the root log path. `warning:` lines (notably `.pacnew` and `.pacsave`) become `WARN` lines, and a `REBOOT` line is added when the CachyOS hook says `Reboot is recommended` or the running kernel's modules are gone.
 7. Lists the orphan packages on one line, asks once (`Supprimer les orphelins ? [O/n]`) and removes them, output in the run log.
 

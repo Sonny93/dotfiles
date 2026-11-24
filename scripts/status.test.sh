@@ -165,7 +165,50 @@ test_summary_clean_report_is_silent() {
     report "should print nothing for an empty report and succeed with only warnings" "$detail"
 }
 
+test_quiet_step_has_no_controlling_session() {
+    local detail="" own_session step_session
+    reset_files
+    own_session="$(ps -o sid= -p $$ | tr -d ' ')"
+    run_quiet_step "Session" sh -c 'ps -o sid= -p $$' >/dev/null 2>&1
+    step_session="$(tr -d ' \n' <"$UPDATE_LOG" | sed 's/^====Session====//')"
+    [[ -n "$step_session" && "$step_session" != "$own_session" ]] || detail="own [$own_session] step [$step_session]"
+    report "should run a quiet step in its own session so the tty sudo ticket is unusable" "$detail"
+}
+
+test_quiet_root_step_keeps_the_session() {
+    local detail="" own_session step_session output step_status=0
+    reset_files
+    own_session="$(ps -o sid= -p $$ | tr -d ' ')"
+    output="$(run_quiet_root_step "Root" sh -c 'ps -o sid= -p $$' 2>&1)" || step_status=$?
+    step_session="$(tr -d ' \n' <"$UPDATE_LOG" | sed 's/^====Root====//')"
+    [[ "$step_session" == "$own_session" ]] || detail="own [$own_session] step [$step_session]"
+    [[ "$output" == "✓ Root" && "$step_status" == 0 ]] || detail="$detail output [$output]"
+    report "should keep the session of a quiet root step so sudo can use its cached ticket" "$detail"
+}
+
+test_quiet_root_step_failure_is_reported() {
+    local detail="" output step_status=0
+    reset_files
+    output="$(run_quiet_root_step "Root" sh -c 'echo "error: nope"; exit 5' 2>&1)" || step_status=$?
+    [[ "$step_status" == 5 && "$output" == "✗ Root"* && "$output" == *"error: nope"* ]] || detail="status $step_status output [$output]"
+    [[ "$(cat "$UPDATE_REPORT")" == "ERROR Root" ]] || detail="$detail report [$(cat "$UPDATE_REPORT")]"
+    report "should report an ERROR when a quiet root step fails" "$detail"
+}
+
+test_step_timeout_override_order() {
+    local detail=""
+    reset_files
+    [[ "$(resolve_step_timeout)" == 600 ]] || detail="default [$(resolve_step_timeout)]"
+    [[ "$(STEP_TIMEOUT_SECONDS=1800 resolve_step_timeout)" == 1800 ]] || detail="$detail per call"
+    [[ "$(UPDATE_STEP_TIMEOUT=5 STEP_TIMEOUT_SECONDS=1800 resolve_step_timeout)" == 5 ]] || detail="$detail env override"
+    report "should use 600 seconds, a per-call value, and let UPDATE_STEP_TIMEOUT win" "$detail"
+}
+
 test_quiet_step_success
+test_quiet_step_has_no_controlling_session
+test_quiet_root_step_keeps_the_session
+test_quiet_root_step_failure_is_reported
+test_step_timeout_override_order
 test_quiet_step_failure
 test_quiet_step_failure_without_match_shows_tail
 test_quiet_step_only_shows_its_own_output
