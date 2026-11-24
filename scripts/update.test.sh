@@ -279,10 +279,55 @@ test_quiet_role_run_goes_step_by_step() {
     local detail="" justfile="$SANDBOX/clone/Justfile"
     run_quiet_dev_role
     [[ "$exit_status" == 0 ]] || detail="exit status $exit_status"
-    [[ "$stdout" == *"✓ record-role dev"* && "$stdout" == *"✓ system"* && "$stdout" == *"✓ build-deps"* ]] || detail="$detail stdout [$stdout]"
+    [[ "$stdout" == *"✓ [1/5] record-role dev"* && "$stdout" == *"✓ [2/5] system"* && "$stdout" == *"✓ [3/5] build-deps"* ]] || detail="$detail stdout [$stdout]"
     [[ "$stdout" == *"gh not authenticated, skipped gh-auth"* ]] || detail="$detail no gh skip warning"
     [[ "$calls" == "just -f $justfile record-role dev"$'\n'"just -f $justfile system"$'\n'"just -f $justfile build-deps"$'\n'"just -f $justfile doctor-dev" ]] || detail="$detail calls [$calls]"
     report "should run the role steps one by one, skip gh-auth and run the doctor once at the end" "$detail"
+}
+
+test_quiet_role_run_numbers_every_step() {
+    local detail=""
+    run_quiet_dev_role
+    [[ "$stdout" == *"Étapes (5) : record-role dev · system · build-deps · gh-auth · doctor-dev"* ]] || detail="plan missing [$stdout]"
+    [[ "$stdout" == *"✓ [1/5] record-role dev"* && "$stdout" == *"✓ [2/5] system"* && "$stdout" == *"✓ [3/5] build-deps"* ]] || detail="$detail counters [$stdout]"
+    [[ "$stdout" == *"– [4/5] gh-auth (ignoré)"* ]] || detail="$detail skipped line missing [$stdout]"
+    [[ "$stdout" == *"✓ [5/5] doctor-dev"* ]] || detail="$detail doctor not counted [$stdout]"
+    [[ "$stdout" == *"==> [2/5] system"* ]] || detail="$detail visible header not numbered [$stdout]"
+    report "should print the plan once and number every step up to N, skipped steps included" "$detail"
+}
+
+test_failed_sudo_login_counts_skipped_root_steps() {
+    local detail=""
+    setup_scenario
+    touch "$SANDBOX/sudo_denied" "$SANDBOX/sudo_login_fails"
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$stdout" == *"– [3/5] build-deps (ignoré)"* && "$stdout" == *"✓ [5/5] doctor-dev"* ]] || detail="stdout [$stdout]"
+    report "should advance the counter for a root step skipped without a sudo ticket" "$detail"
+}
+
+test_hook_step_is_not_counted() {
+    local detail=""
+    setup_scenario
+    install_hook
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$stdout" == *"==> update hook"* && "$stdout" == *"✓ update hook"* ]] || detail="hook lines missing [$stdout]"
+    [[ "$stdout" != *"Étapes"* ]] || detail="$detail plan printed by update.sh [$stdout]"
+    report "should not print a plan nor a counter for the update hook container step" "$detail"
+}
+
+test_verbose_run_has_no_counter() {
+    local detail=""
+    setup_scenario
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    run_update
+    [[ "$stdout" != *"Étapes"* && "$stdout" != *"[1/"* ]] || detail="stdout [$stdout]"
+    report "should keep the verbose output free of plan and counters" "$detail"
 }
 
 test_cached_sudo_ticket_is_not_asked_again() {
@@ -301,7 +346,7 @@ test_missing_sudo_ticket_is_asked_once() {
     run_update
     update_arguments=(--verbose)
     [[ "$(grep -cx 'sudo -v' <<<"$sudo_calls")" == 1 ]] || detail="sudo calls [$sudo_calls]"
-    [[ "$stdout" == *"✓ build-deps"* ]] || detail="$detail stdout [$stdout]"
+    [[ "$stdout" == *"✓ [3/5] build-deps"* ]] || detail="$detail stdout [$stdout]"
     report "should run one visible sudo -v before the root steps when no ticket is cached" "$detail"
 }
 
@@ -352,6 +397,10 @@ test_failing_hook_is_reported
 test_old_runs_are_pruned
 test_sudo_session_ends_on_exit
 test_quiet_role_run_goes_step_by_step
+test_quiet_role_run_numbers_every_step
+test_failed_sudo_login_counts_skipped_root_steps
+test_hook_step_is_not_counted
+test_verbose_run_has_no_counter
 test_cached_sudo_ticket_is_not_asked_again
 test_missing_sudo_ticket_is_asked_once
 test_failed_sudo_login_skips_root_steps

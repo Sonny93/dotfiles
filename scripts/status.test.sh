@@ -235,7 +235,72 @@ test_interrupt_kills_the_step_group() {
     report "should kill the step's process group and fail when the runner gets TERM or HUP" "$detail"
 }
 
+reset_progress() {
+    reset_files
+    export UPDATE_PROGRESS_FILE="$SANDBOX/run.progress"
+    unset UPDATE_STEP_TOTAL
+    : >"$UPDATE_PROGRESS_FILE"
+}
+
+clear_progress() {
+    unset UPDATE_PROGRESS_FILE UPDATE_STEP_TOTAL
+}
+
+test_plan_lists_steps_and_numbers_them() {
+    local detail="" plan_output step_output skipped_output visible_output
+    reset_progress
+    plan_output="$(print_step_plan "record-role dev" system doctor-dev)"
+    export UPDATE_STEP_TOTAL=3
+    step_output="$(run_quiet_step "record-role dev" true 2>&1)"
+    skipped_output="$(report_skipped_step system)"
+    visible_output="$(run_visible_step doctor-dev true 2>&1)"
+    clear_progress
+    [[ "$plan_output" == "Étapes (3) : record-role dev · system · doctor-dev" ]] || detail="plan [$plan_output]"
+    [[ "$step_output" == "✓ [1/3] record-role dev" ]] || detail="$detail step [$step_output]"
+    [[ "$skipped_output" == "– [2/3] system (ignoré)" ]] || detail="$detail skipped [$skipped_output]"
+    [[ "$visible_output" == $'==> [3/3] doctor-dev\n✓ [3/3] doctor-dev' ]] || detail="$detail visible [$visible_output]"
+    grep -q '^==== record-role dev ====$' "$UPDATE_LOG" || detail="$detail log header should stay unnumbered"
+    report "should print the plan and number quiet, skipped and visible steps" "$detail"
+}
+
+test_failed_step_keeps_its_number() {
+    local detail="" step_output
+    reset_progress
+    print_step_plan one two >/dev/null
+    step_output="$(run_quiet_step one sh -c 'echo "fatal: no"; exit 1' 2>&1)" || true
+    clear_progress
+    [[ "$step_output" == "✗ [1/2] one"* ]] || detail="output [$step_output]"
+    [[ "$(cat "$UPDATE_REPORT")" == "ERROR one" ]] || detail="$detail report [$(cat "$UPDATE_REPORT")]"
+    report "should number a failed step and keep its label unnumbered in the report" "$detail"
+}
+
+test_container_and_nested_steps_are_not_counted() {
+    local detail="" container_output
+    reset_progress
+    print_step_plan one two >/dev/null
+    container_output="$(run_container_step hook true 2>&1)"
+    run_uncounted_root_step nested true >/dev/null 2>&1
+    clear_progress
+    [[ "$container_output" == $'==> hook\n✓ hook' ]] || detail="container [$container_output]"
+    [[ "$(cat "$SANDBOX/run.progress")" == "" ]] || detail="$detail counter [$(cat "$SANDBOX/run.progress")]"
+    report "should not advance the counter for a container step or a nested root step" "$detail"
+}
+
+test_without_progress_file_output_is_unchanged() {
+    local detail="" plan_output skipped_output
+    reset_files
+    clear_progress
+    plan_output="$(print_step_plan one two)"
+    skipped_output="$(report_skipped_step one)"
+    [[ -z "$plan_output" && -z "$skipped_output" ]] || detail="plan [$plan_output] skipped [$skipped_output]"
+    report "should print no plan and no skipped line without UPDATE_PROGRESS_FILE" "$detail"
+}
+
 test_quiet_step_success
+test_plan_lists_steps_and_numbers_them
+test_failed_step_keeps_its_number
+test_container_and_nested_steps_are_not_counted
+test_without_progress_file_output_is_unchanged
 test_interrupt_kills_the_step_group
 test_quiet_step_has_no_controlling_session
 test_quiet_root_step_keeps_the_session

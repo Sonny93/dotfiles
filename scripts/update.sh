@@ -6,6 +6,8 @@
 #   UPDATE_REPORT (one `WARN|ERROR|REBOOT <text>` line each) is always written; a preset value is used as is, so a caller can read it afterwards
 #   UPDATE_SUDO_PAUSE_FILE (exported, unique per run): while that file exists the sudo keep-alive stops refreshing the ticket;
 #   a caller creates it before running AUR builds and removes it after; update.sh removes it on exit
+#   quiet runs print the plan of the steps once (print_step_plan) and number each step [n/N]; the counter file is UPDATE_PROGRESS_FILE
+#   (exported, one per run, next to the log); the update hook prints its own plan, so the hook step itself is not counted
 #   logs and reports live in ${XDG_STATE_HOME:-~/.local/state}/dotfiles/update, the 14 newest are kept
 #   exits non-zero when a step failed or the report holds an ERROR
 #   DOTFILES_DIRECTORY overrides the repo location (tests); DOTFILES_UPDATE_PULLED=1 marks the re-exec after a pull
@@ -68,7 +70,7 @@ parse_arguments() {
 
 prune_run_files() {
     local extension
-    for extension in log report; do
+    for extension in log report progress; do
         find "$STATE_DIRECTORY" -maxdepth 1 -type f -name "*.$extension" | sort | head -n "-$KEPT_RUN_FILES" | xargs -r rm -f --
     done
 }
@@ -87,6 +89,11 @@ prepare_run_files() {
         : >"$UPDATE_LOG"
     fi
     export UPDATE_SUDO_PAUSE_FILE="${XDG_RUNTIME_DIR:-/tmp}/dotfiles-update-sudo-pause-$timestamp"
+    unset UPDATE_PROGRESS_FILE
+    if [ "$IS_VERBOSE" -eq 0 ]; then
+        export UPDATE_PROGRESS_FILE="$STATE_DIRECTORY/$timestamp.progress"
+        : >"$UPDATE_PROGRESS_FILE"
+    fi
     export UPDATE_REPORT="${UPDATE_REPORT:-$STATE_DIRECTORY/$timestamp.report}"
     mkdir -p "$(dirname "$UPDATE_REPORT")"
     : >"$UPDATE_REPORT"
@@ -163,8 +170,16 @@ run_pull_step() {
     fi
 }
 
+print_role_plan() {
+    local role="$1"
+    local -a step_labels
+    mapfile -t step_labels < <(env DOTFILES_DIRECTORY="$DOTFILES_DIRECTORY" "$SCRIPT_DIRECTORY/dev-update.sh" --list "$role")
+    print_step_plan "${step_labels[@]}" "doctor-$role"
+}
+
 run_role_steps() {
     local role="$1" steps_status=0 doctor_status=0
+    print_role_plan "$role"
     env DOTFILES_DIRECTORY="$DOTFILES_DIRECTORY" "$SCRIPT_DIRECTORY/dev-update.sh" "$role" || steps_status=$?
     run_quiet_step "doctor-$role" just -f "$DOTFILES_DIRECTORY/Justfile" "doctor-$role" || doctor_status=$?
     [ "$steps_status" -eq 0 ] || return "$steps_status"
@@ -189,13 +204,14 @@ run_setup_recipe() {
 run_apply_step() {
     print_banner "$STEP_STYLE" "2/3 Apply"
     if [ -x "$HOOK_PATH" ]; then
-        run_visible_step "update hook" "$HOOK_PATH"
+        run_container_step "update hook" "$HOOK_PATH"
         return
     fi
     run_setup_recipe
 }
 
 run_claude_step() {
+    end_step_plan
     print_banner "$STEP_STYLE" "3/3 Claude Code instances (tmux)"
     if command -v claude >/dev/null && tmux list-sessions >/dev/null 2>&1; then
         run_quiet_step "Claude Code restart" "$DOTFILES_DIRECTORY/tmux/restart-claude.sh"

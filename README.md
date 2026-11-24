@@ -208,6 +208,8 @@ exec zsh
 
 `update` (`scripts/update.sh [--verbose]`) is quiet by default: one banner per phase, one `✓` / `✗` line per step, the list of pulled commits, a compact list of package upgrades with their versions, conflicts and errors with their reason, and a final summary. Everything else goes to a run log; its path is shown whenever a step fails or the summary is not clean. `update --verbose` prints the full output of every step instead and writes no log. Any other argument is rejected.
 
+Before the first step of the apply phase, the run prints the plan once, for example `Étapes (5) : record-role dev · system · build-deps · gh-auth · doctor-dev`, and every step line then carries a `[n/N]` prefix (`✓ [3/5] build-deps`). A step skipped on purpose (`gh-auth` without login, root steps without a sudo ticket) prints `– [4/5] gh-auth (ignoré)` so the counter always ends at N. The update hook prints its own plan (the hook step itself is not counted). The plan labels come from `scripts/dev-update.sh --list [dev|server]`, which prints the step labels one per line without running anything.
+
 Phases:
 
 1. **Pull**: fast-forward only. It skips the pull with a warning when the repo is not on `main`, has uncommitted tracked changes, has no upstream or has diverged, and continues without pulling when offline. The incoming commits are always listed, even in quiet mode: that list is the only review of code that will run as root. When commits were merged, `update` restarts itself so the new version runs.
@@ -217,8 +219,9 @@ Phases:
 Files, in `${XDG_STATE_HOME:-~/.local/state}/dotfiles/update` (mode 700):
 
 - `<timestamp>.log`: output of every step (quiet mode only, exported as `UPDATE_LOG`).
+- `<timestamp>.progress`: the step counter of the run (exported as `UPDATE_PROGRESS_FILE`, quiet mode only). `print_step_plan <labels...>` in `scripts/status.sh` resets it and exports `UPDATE_STEP_TOTAL`; `run_quiet_step`, `run_quiet_root_step` and `run_visible_step` advance it and show the prefix, `report_skipped_step <label>` advances it for a skipped step, and `run_container_step` (a step that only wraps others, like the update hook) and `run_uncounted_root_step` (a step nested in another one) leave it alone. Without `UPDATE_PROGRESS_FILE` the output is unchanged.
 - `<timestamp>.report`: one `WARN <text>`, `ERROR <text>` or `REBOOT <text>` line per finding (exported as `UPDATE_REPORT`, always written; an empty report after exit 0 means a clean run). A caller can preset `UPDATE_REPORT` to read it afterwards: `update` then uses that path, truncated at the start.
-- The 14 newest logs and the 14 newest reports are kept.
+- The 14 newest logs, reports and counters are kept.
 
 `update` exits non-zero when a step failed or the report holds an `ERROR`.
 

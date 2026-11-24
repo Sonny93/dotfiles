@@ -5,6 +5,10 @@
 #   run_quiet_root_step keeps the terminal for steps that call sudo with the cached ticket.
 #   Timeout: UPDATE_STEP_TIMEOUT overrides everything, else STEP_TIMEOUT_SECONDS set for one call, else 600 seconds.
 #   UPDATE_LOG (run log) and UPDATE_REPORT (WARN/ERROR/REBOOT lines) are set by update.sh; both unset means plain verbose behavior.
+#   Step plan: print_step_plan <labels...> prints the upcoming steps once and exports UPDATE_STEP_TOTAL; every counted step then shows
+#   a [n/N] prefix. The counter lives in the file UPDATE_PROGRESS_FILE (set by update.sh), shared by every process of the run.
+#   A step that is skipped on purpose calls report_skipped_step so the counter still ends at N; container steps and steps nested
+#   in another step use run_container_step and run_uncounted_root_step. Without UPDATE_PROGRESS_FILE the output is unchanged.
 readonly COLOR_RED=$'\033[31m'
 readonly COLOR_GREEN=$'\033[32m'
 readonly COLOR_YELLOW=$'\033[33m'
@@ -65,6 +69,52 @@ print_step_failed() { print_marked_line "$COLOR_RED" "✗" "$*"; }
 
 print_step_header() { printf '==> %s\n' "$*"; }
 
+is_progress_enabled() {
+    [ -n "${UPDATE_PROGRESS_FILE:-}" ]
+}
+
+read_step_counter() {
+    local counter=""
+    read -r counter <"$UPDATE_PROGRESS_FILE" 2>/dev/null || true
+    echo "${counter:-0}"
+}
+
+advance_step_counter() {
+    local counter
+    counter="$(read_step_counter)"
+    counter=$((counter + 1))
+    printf '%s\n' "$counter" >"$UPDATE_PROGRESS_FILE"
+    echo "$counter"
+}
+
+format_step_label() {
+    local label="$1" counter
+    is_progress_enabled || { echo "$label"; return 0; }
+    counter="$(advance_step_counter)"
+    [ -n "${UPDATE_STEP_TOTAL:-}" ] || { echo "$label"; return 0; }
+    echo "[$counter/$UPDATE_STEP_TOTAL] $label"
+}
+
+print_step_plan() {
+    local separator=" · " plan_text="" label
+    is_progress_enabled || return 0
+    : >"$UPDATE_PROGRESS_FILE"
+    export UPDATE_STEP_TOTAL="$#"
+    for label in "$@"; do
+        plan_text="${plan_text:+$plan_text$separator}$label"
+    done
+    printf 'Étapes (%s) : %s\n' "$#" "$plan_text"
+}
+
+end_step_plan() {
+    unset UPDATE_STEP_TOTAL
+}
+
+report_skipped_step() {
+    is_progress_enabled || return 0
+    print_marked_line "$COLOR_YELLOW" "–" "$(format_step_label "$1") (ignoré)"
+}
+
 append_log_header() {
     [ -n "${UPDATE_LOG:-}" ] || return 0
     printf '==== %s ====\n' "$*" >>"$UPDATE_LOG"
@@ -118,24 +168,25 @@ end_step_progress() {
 }
 
 run_logged_step() {
-    local runner="$1" label="$2" log_offset command_status=0
+    local runner="$1" label="$2" log_offset command_status=0 display_label
     shift 2
+    display_label="$(format_step_label "$label")"
     if [ -z "${UPDATE_LOG:-}" ]; then
-        print_step_header "$label"
+        print_step_header "$display_label"
         "$@" || command_status=$?
         [ "$command_status" -eq 0 ] || report_line ERROR "$label"
         return "$command_status"
     fi
     append_log_header "$label"
     log_offset="$(stat -c %s "$UPDATE_LOG")"
-    begin_step_progress "$label"
+    begin_step_progress "$display_label"
     "$runner" "$@" || command_status=$?
     end_step_progress
     if [ "$command_status" -eq 0 ]; then
-        print_step_ok "$label"
+        print_step_ok "$display_label"
         return 0
     fi
-    print_step_failed "$label"
+    print_step_failed "$display_label"
     print_failure_excerpt "$log_offset"
     report_line ERROR "$label"
     return "$command_status"
@@ -145,18 +196,34 @@ run_quiet_step() { run_logged_step run_detached_command "$@"; }
 
 run_quiet_root_step() { run_logged_step run_attached_command "$@"; }
 
-run_visible_step() {
-    local label="$1" command_status=0
-    shift
-    print_step_header "$label"
+run_uncounted_root_step() {
+    UPDATE_STEP_TOTAL="" UPDATE_PROGRESS_FILE="" run_quiet_root_step "$@"
+}
+
+run_visible_labelled() {
+    local display_label="$1" label="$2" command_status=0
+    shift 2
+    print_step_header "$display_label"
     append_log_header "$label"
     "$@" || command_status=$?
     if [ "$command_status" -ne 0 ]; then
-        print_step_failed "$label"
+        print_step_failed "$display_label"
         report_line ERROR "$label"
         return "$command_status"
     fi
-    print_step_ok "$label"
+    print_step_ok "$display_label"
+}
+
+run_visible_step() {
+    local label="$1"
+    shift
+    run_visible_labelled "$(format_step_label "$label")" "$label" "$@"
+}
+
+run_container_step() {
+    local label="$1"
+    shift
+    run_visible_labelled "$label" "$label" "$@"
 }
 
 print_report_summary() {

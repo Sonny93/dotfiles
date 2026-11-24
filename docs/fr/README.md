@@ -208,6 +208,8 @@ exec zsh
 
 `update` (`scripts/update.sh [--verbose]`) est silencieuse par défaut : un bandeau par phase, une ligne `✓` / `✗` par étape, la liste des commits tirés, une liste compacte des mises à jour de paquets avec leurs versions, les conflits et erreurs avec leur raison, puis un résumé final. Tout le reste va dans un journal d'exécution, dont le chemin est affiché dès qu'une étape échoue ou que le résumé n'est pas propre. `update --verbose` affiche à la place toute la sortie de chaque étape et n'écrit pas de journal. Tout autre argument est refusé.
 
+Avant la première étape de la phase d'application, l'exécution affiche le plan une fois, par exemple `Étapes (5) : record-role dev · system · build-deps · gh-auth · doctor-dev`, et chaque ligne d'étape porte ensuite un préfixe `[n/N]` (`✓ [3/5] build-deps`). Une étape sautée volontairement (`gh-auth` sans connexion, étapes root sans ticket sudo) affiche `– [4/5] gh-auth (ignoré)` : le compteur finit toujours à N. Le hook de mise à jour affiche son propre plan (l'étape du hook elle-même n'est pas comptée). Les libellés du plan viennent de `scripts/dev-update.sh --list [dev|server]`, qui affiche les libellés des étapes, un par ligne, sans rien exécuter.
+
 Phases :
 
 1. **Pull** : fast-forward uniquement. Il est sauté avec un avertissement quand le repo n'est pas sur `main`, a des modifications suivies non commitées, n'a pas d'upstream ou a divergé, et continue sans pull hors ligne. Les commits entrants sont toujours listés, même en mode silencieux : cette liste est la seule relecture d'un code qui tournera en root. Quand des commits ont été fusionnés, `update` se relance pour exécuter la nouvelle version.
@@ -217,8 +219,9 @@ Phases :
 Fichiers, dans `${XDG_STATE_HOME:-~/.local/state}/dotfiles/update` (mode 700) :
 
 - `<horodatage>.log` : sortie de chaque étape (mode silencieux seulement, exporté en `UPDATE_LOG`).
+- `<horodatage>.progress` : le compteur d'étapes de l'exécution (exporté en `UPDATE_PROGRESS_FILE`, mode silencieux seulement). `print_step_plan <libellés...>` de `scripts/status.sh` le remet à zéro et exporte `UPDATE_STEP_TOTAL` ; `run_quiet_step`, `run_quiet_root_step` et `run_visible_step` l'avancent et affichent le préfixe, `report_skipped_step <libellé>` l'avance pour une étape sautée, et `run_container_step` (une étape qui n'en enveloppe que d'autres, comme le hook de mise à jour) et `run_uncounted_root_step` (une étape imbriquée dans une autre) n'y touchent pas. Sans `UPDATE_PROGRESS_FILE`, la sortie est inchangée.
 - `<horodatage>.report` : une ligne `WARN <texte>`, `ERROR <texte>` ou `REBOOT <texte>` par constat (exporté en `UPDATE_REPORT`, toujours écrit ; un rapport vide après une sortie 0 signifie une exécution propre). Un appelant peut fixer `UPDATE_REPORT` à l'avance pour le lire ensuite : `update` utilise alors ce chemin, vidé au départ.
-- Les 14 journaux et les 14 rapports les plus récents sont gardés.
+- Les 14 journaux, rapports et compteurs les plus récents sont gardés.
 
 `update` sort avec un code non nul quand une étape a échoué ou que le rapport contient un `ERROR`.
 

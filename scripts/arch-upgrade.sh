@@ -200,7 +200,7 @@ remove_orphans() {
         warn "orphan packages kept, run 'just system' to remove them"
         return 0
     fi
-    run_quiet_root_step "remove orphan packages" sudo pacman -Rns --noconfirm "${orphans[@]}"
+    run_uncounted_root_step "remove orphan packages" sudo pacman -Rns --noconfirm "${orphans[@]}"
 }
 
 preview_transaction() {
