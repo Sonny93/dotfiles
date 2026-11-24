@@ -9,8 +9,17 @@ zsh, git, mise, tmux et Starship, répartis par machine : machine de dev et serv
 | **Machine de dev** (Debian ou base Arch, par exemple CachyOS) | Shell + tous les outils mise + git + `gh` + config Claude Code. Une machine de bureau reçoit Bitwarden (agent SSH), Tabby et les applications de bureau d'un dépôt privé séparé | `just doctor-dev` |
 | **Serveur / VPS** (Debian) | Shell seulement. Pas de clé privée, pas de compte GitHub, rien à voler | `just doctor-server` |
 
+## Pourquoi
+
+- **Objectif** : une commande garde les machines de dev et les serveurs de l'utilisateur installés et à jour.
+- **Utilisateurs** : une personne, quelques machines et serveurs personnels.
+- **Enjeux** : elle lance des mises à jour de paquets en root. Une mise à jour ratée peut laisser une machine qui ne démarre plus ; les snapshots btrfs des PC CachyOS sont le filet de sécurité.
+- **Hors périmètre** : pas de multi-utilisateur, pas de mise à jour root sans surveillance, pas de sudo `NOPASSWD`.
+- **Contraintes fermes** : dotfiles ne dépend jamais du dépôt machines (la dépendance va dans un seul sens, de machines vers dotfiles) ; Arch et Debian sont tous deux pris en charge.
+
 ## Sommaire
 
+- [Pourquoi](#pourquoi)
 - [Où vit quoi](#où-vit-quoi)
 - [Une seule fois : la clé SSH](#une-seule-fois--la-clé-ssh)
 - [Machine de dev](#machine-de-dev)
@@ -18,6 +27,7 @@ zsh, git, mise, tmux et Starship, répartis par machine : machine de dev et serv
 - [Serveur / VPS](#serveur--vps)
 - [Ajouter une connexion](#ajouter-une-connexion)
 - [Commandes](#commandes)
+- [La commande update](#la-commande-update)
 - [Shell](#shell)
 - [tmux](#tmux)
 - [Claude Code](#claude-code)
@@ -35,6 +45,8 @@ zsh, git, mise, tmux et Starship, répartis par machine : machine de dev et serv
 | Config Claude Code (CLAUDE.md, RTK.md, agents, skills, réglages de base) | `claude/` | Oui |
 | Identifiants Claude Code, jetons MCP, mémoire, historique | `~/.claude/` et `~/.claude.json` sur chaque machine de dev | Jamais |
 | Rôle de la machine (`dev` ou `server`), écrit par `just dev` / `just server` et lu par `update` | `~/.config/dotfiles/role` | Jamais |
+| Journal d'exécution de `update` (mode silencieux) et son rapport, les 14 plus récents de chaque sont gardés | `~/.local/state/dotfiles/update/<horodatage>.log` et `<horodatage>.report` | Jamais |
+| Journal de la mise à jour pacman en root lancée par `update` (propriété de root) | `/var/log/dotfiles/pacman-<horodatage>.log` | Jamais |
 | Délégation optionnelle de `update` : un exécutable qu'un dépôt privé peut installer, il remplace la recette du rôle et doit la lancer lui-même | `~/.config/dotfiles/update-hook` | Jamais |
 
 Le repo est public : on le clone en HTTPS, sans clé ni compte.
@@ -192,9 +204,47 @@ exec zsh
 | `just test` | Lancer les tests des scripts tmux (`tmux/*.test.sh`) sur un serveur tmux isolé, les tests de la barre d'état Claude (`claude/*.test.sh`), les tests des hooks Claude (`claude/hooks/*.test.sh`) et les tests des scripts partagés (`scripts/*.test.sh`) | ✓ | |
 | `just uninstall-omz` | Supprimer une ancienne install Oh My Zsh / Powerlevel10k | | |
 
+## La commande update
+
+`update` (`scripts/update.sh [--verbose]`) est silencieuse par défaut : un bandeau par phase, une ligne `✓` / `✗` par étape, la liste des commits tirés, une liste compacte des mises à jour de paquets avec leurs versions, les conflits et erreurs avec leur raison, puis un résumé final. Tout le reste va dans un journal d'exécution, dont le chemin est affiché dès qu'une étape échoue ou que le résumé n'est pas propre. `update --verbose` affiche à la place toute la sortie de chaque étape et n'écrit pas de journal. Tout autre argument est refusé.
+
+Phases :
+
+1. **Pull** : fast-forward uniquement. Il est sauté avec un avertissement quand le repo n'est pas sur `main`, a des modifications suivies non commitées, n'a pas d'upstream ou a divergé, et continue sans pull hors ligne. Les commits entrants sont toujours listés, même en mode silencieux : cette liste est la seule relecture d'un code qui tournera en root. Quand des commits ont été fusionnés, `update` se relance pour exécuter la nouvelle version.
+2. **Application** : lance `~/.config/dotfiles/update-hook` quand un exécutable existe (il remplace la recette du rôle et doit la lancer lui-même), sinon `scripts/dev-update.sh` pour le rôle enregistré (`just dev` ou `just server`, une étape par recette). Sans rôle enregistré ni hook, lancer `just dev` ou `just server` une fois.
+3. **Claude Code** : relance les instances inactives dans tmux (`tmux/restart-claude.sh`).
+
+Fichiers, dans `${XDG_STATE_HOME:-~/.local/state}/dotfiles/update` (mode 700) :
+
+- `<horodatage>.log` : sortie de chaque étape (mode silencieux seulement, exporté en `UPDATE_LOG`).
+- `<horodatage>.report` : une ligne `WARN <texte>`, `ERROR <texte>` ou `REBOOT <texte>` par constat (exporté en `UPDATE_REPORT`, toujours écrit ; un rapport vide après une sortie 0 signifie une exécution propre). Un appelant peut fixer `UPDATE_REPORT` à l'avance pour le lire ensuite : `update` utilise alors ce chemin, vidé au départ.
+- Les 14 journaux et les 14 rapports les plus récents sont gardés.
+
+`update` sort avec un code non nul quand une étape a échoué ou que le rapport contient un `ERROR`.
+
+Sécurité :
+
+- Un maintien de sudo rafraîchit les droits toutes les 60 secondes pendant l'exécution, et `sudo -k` tourne à la sortie.
+- Les étapes silencieuses tournent avec stdin fermé, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C` et un délai maximal (`UPDATE_STEP_TIMEOUT`, 1800 secondes par défaut) : rien n'attend sur une invite cachée. Les étapes qui peuvent poser une question restent attachées au terminal : `system` (la confirmation de la mise à jour) et le hook. `gh-auth` est sautée avec un `WARN` quand `gh` n'est pas connecté (lancer `just gh-auth`).
+- `scripts/dev-update.sh [dev|server]` lit les étapes dans les dépendances de la recette `dev` (ou `server`) du Justfile (`just --dump`) : la liste n'est déclarée qu'une fois.
+
+### Mise à jour système Arch (mode silencieux)
+
+Sur Arch, `just system` sous un `update` silencieux fait ceci (`scripts/arch-upgrade.sh`) :
+
+1. Aperçu sans root : `checkupdates` rafraîchit une base de synchronisation temporaire, puis la transaction exacte est listée avec les versions installées en tableau aligné `nom  ancienne -> nouvelle` et un total (une nouvelle dépendance s'affiche `(new) -> version`). Rien à mettre à jour : une ligne, et aucune étape root.
+2. Affiche les nouvelles Arch non lues (`paru -Pw`) quand paru est installé.
+3. Pose une seule question, `Appliquer ? [O/n]` (oui par défaut). Répondre non, ou ne pas avoir de terminal, saute la mise à jour avec un `WARN`.
+4. Refuse avec un `ERROR` quand `/var/lib/pacman/db.lck` existe.
+5. Lance `pacman -Syu --noconfirm` comme unité systemd transitoire (`dotfiles-pacman-<horodatage>`) sous `systemd-inhibit` (arrêt, veille et capot bloqués). L'unité survit à Ctrl+C, à un terminal fermé et à une déconnexion : le terminal ne fait que suivre le journal root `/var/log/dotfiles/pacman-<horodatage>.log`, et Ctrl+C arrête le suivi, jamais la mise à jour (le message donne le journal à suivre).
+6. Affiche `✓` ou `✗`. En cas d'échec : les lignes de conflit et d'erreur et le chemin du journal root. Les lignes `warning:` (notamment `.pacnew` et `.pacsave`) deviennent des `WARN`, et une ligne `REBOOT` est ajoutée quand le hook CachyOS dit `Reboot is recommended` ou que les modules du noyau en cours ont disparu.
+7. Liste les paquets orphelins sur une ligne, demande une fois (`Supprimer les orphelins ? [O/n]`) et les supprime, sortie dans le journal d'exécution.
+
+Le mode verbeux et Debian gardent le comportement précédent (`apt` ou `pacman` avec leurs propres invites, au premier plan). Parité apt/pacman : chaque appel apt garde son jumeau pacman ; l'aperçu, l'unité ininterruptible et le journal root n'existent que sur Arch, donc la mise à jour d'un serveur Debian n'est pas protégée contre un terminal fermé.
+
 ## Shell
 
-zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). La commande `update` (`scripts/update.sh`) commence par tirer le repo dotfiles, en fast-forward uniquement : elle saute le pull avec un avertissement quand le repo n'est pas sur `main`, a des modifications suivies non commitées, n'a pas d'upstream ou a divergé, et continue sans pull hors ligne. Quand des commits ont été fusionnés, elle se relance pour exécuter la nouvelle version. Elle rejoue ensuite la recette du rôle enregistré (`just dev` ou `just server`, donc les paquets système et les outils mise sont mis à jour), ou lance `~/.config/dotfiles/update-hook` quand un exécutable existe (il remplace la recette du rôle et doit la lancer lui-même). Enfin, elle relance les Claude Code inactifs dans tmux (`tmux/restart-claude.sh`). Sans rôle enregistré ni hook, lancer `just dev` ou `just server` une fois. Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit. Tous les outils viennent de mise, avec une seule config pour toutes les machines.
+zsh + [zinit](https://github.com/zdharma-continuum/zinit) (autosuggestions, syntax-highlighting) + [Starship](https://starship.rs) (prompt) + fzf (`Ctrl+R` / `Ctrl+T` / `Alt+C`) + fastfetch (alias `ff`). La commande `update` est décrite dans [La commande update](#la-commande-update). Les raccourcis clavier (Ctrl+flèches, Home/End, Suppr…) viennent du fichier `key-bindings.zsh` d'Oh My Zsh, chargé seul via zinit. Tous les outils viennent de mise, avec une seule config pour toutes les machines.
 
 Chaque machine reçoit une pastille colorée (emoji) calculée à partir de son nom d'hôte, affichée dans le titre d'onglet et dans le prompt : aucune configuration. En cas de collision entre deux machines, renommer l'une d'elles ou ajouter `export MACHINE_BADGE=🟢` dans `~/.zshenv` sur cette machine.
 

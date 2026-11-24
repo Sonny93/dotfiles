@@ -51,6 +51,9 @@ system:
             sudo apt autoremove
             ;;
         arch)
+            if [ -n "${UPDATE_LOG:-}" ]; then
+                exec {{dotfiles}}/scripts/arch-upgrade.sh
+            fi
             sudo pacman -Syu
             mapfile -t orphan_packages < <(pacman -Qdtq)
             if [ "${#orphan_packages[@]}" -eq 0 ]; then

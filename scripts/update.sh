@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
 # Pulls the dotfiles repo (fast-forward only), re-applies the machine setup, then restarts idle Claude Code instances.
-# Usage: update.sh
+# Usage: update.sh [--verbose]
+#   default is quiet: banners, one result line per step, the pulled commits and a final summary; everything else goes to UPDATE_LOG
+#   --verbose prints the full output of every step instead (no UPDATE_LOG)
+#   UPDATE_REPORT (one `WARN|ERROR|REBOOT <text>` line each) is always written; a preset value is used as is, so a caller can read it afterwards
+#   logs and reports live in ${XDG_STATE_HOME:-~/.local/state}/dotfiles/update, the 14 newest are kept
+#   exits non-zero when a step failed or the report holds an ERROR
 #   DOTFILES_DIRECTORY overrides the repo location (tests); DOTFILES_UPDATE_PULLED=1 marks the re-exec after a pull
 set -euo pipefail
 
@@ -14,6 +19,14 @@ readonly ROLE_PATH="$CONFIG_DIRECTORY/role"
 readonly MAIN_BRANCH="main"
 readonly STEP_STYLE='\e[1;30;43m'
 readonly DONE_STYLE='\e[1;30;42m'
+readonly FAILED_STYLE='\e[1;30;41m'
+readonly STATE_DIRECTORY="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/update"
+readonly KEPT_RUN_FILES=14
+readonly SUDO_REFRESH_SECONDS=60
+readonly USAGE_STATUS=2
+
+IS_VERBOSE=0
+KEEPALIVE_PID=""
 readonly RESET_STYLE='\e[0m'
 
 # shellcheck source=status.sh
@@ -26,7 +39,69 @@ print_banner() {
 }
 
 git_dotfiles() {
-    git -C "$DOTFILES_DIRECTORY" "$@"
+    GIT_TERMINAL_PROMPT=0 git -C "$DOTFILES_DIRECTORY" "$@"
+}
+
+parse_arguments() {
+    local argument
+    for argument in "$@"; do
+        case "$argument" in
+            --verbose) IS_VERBOSE=1 ;;
+            *)
+                echo "Usage: update.sh [--verbose]" >&2
+                exit "$USAGE_STATUS"
+                ;;
+        esac
+    done
+}
+
+prune_run_files() {
+    local extension
+    for extension in log report; do
+        find "$STATE_DIRECTORY" -maxdepth 1 -type f -name "*.$extension" | sort | head -n "-$KEPT_RUN_FILES" | xargs -r rm -f --
+    done
+}
+
+prepare_run_files() {
+    local timestamp
+    if [ "${DOTFILES_UPDATE_PULLED:-}" = "1" ]; then
+        return 0
+    fi
+    timestamp="$(date +%Y-%m-%dT%H-%M-%S)"
+    mkdir -p "$STATE_DIRECTORY"
+    chmod 700 "$STATE_DIRECTORY"
+    unset UPDATE_LOG
+    if [ "$IS_VERBOSE" -eq 0 ]; then
+        export UPDATE_LOG="$STATE_DIRECTORY/$timestamp.log"
+        : >"$UPDATE_LOG"
+    fi
+    export UPDATE_REPORT="${UPDATE_REPORT:-$STATE_DIRECTORY/$timestamp.report}"
+    mkdir -p "$(dirname "$UPDATE_REPORT")"
+    : >"$UPDATE_REPORT"
+    prune_run_files
+}
+
+start_sudo_keepalive() {
+    command -v sudo >/dev/null || return 0
+    local parent_pid="$$"
+    (
+        while kill -0 "$parent_pid" 2>/dev/null; do
+            sudo -n -v 2>/dev/null || true
+            sleep "$SUDO_REFRESH_SECONDS"
+        done
+    ) </dev/null >/dev/null 2>&1 &
+    KEEPALIVE_PID=$!
+}
+
+stop_sudo_keepalive() {
+    [ -z "$KEEPALIVE_PID" ] || kill "$KEEPALIVE_PID" 2>/dev/null || true
+    KEEPALIVE_PID=""
+}
+
+end_sudo_session() {
+    stop_sudo_keepalive
+    command -v sudo >/dev/null || return 0
+    sudo -k 2>/dev/null || true
 }
 
 can_fast_forward() {
@@ -56,11 +131,11 @@ can_fast_forward() {
 pull_dotfiles() {
     can_fast_forward || return 1
     if [ "$(git_dotfiles rev-parse HEAD)" = "$(git_dotfiles rev-parse '@{u}')" ]; then
-        echo "Already up to date"
+        print_step_ok "Already up to date"
         return 1
     fi
     git_dotfiles log --oneline 'HEAD..@{u}'
-    git_dotfiles merge --ff-only '@{u}'
+    run_quiet_step "fast-forward merge" git -C "$DOTFILES_DIRECTORY" merge --ff-only '@{u}'
 }
 
 run_pull_step() {
@@ -70,6 +145,7 @@ run_pull_step() {
         return 0
     fi
     if pull_dotfiles; then
+        stop_sudo_keepalive
         exec env DOTFILES_UPDATE_PULLED=1 "$SCRIPT_PATH"
     fi
 }
@@ -79,15 +155,20 @@ run_setup_recipe() {
     role="$(cat "$ROLE_PATH" 2>/dev/null || true)"
     if [ "$role" != "dev" ] && [ "$role" != "server" ]; then
         echo "ERROR: no machine role recorded, run 'just dev' or 'just server' once." >&2
+        report_line ERROR "no machine role recorded"
         return 1
     fi
-    just -f "$DOTFILES_DIRECTORY/Justfile" "$role"
+    if [ -n "${UPDATE_LOG:-}" ]; then
+        env DOTFILES_DIRECTORY="$DOTFILES_DIRECTORY" "$SCRIPT_DIRECTORY/dev-update.sh" "$role"
+        return
+    fi
+    run_quiet_step "just $role" just -f "$DOTFILES_DIRECTORY/Justfile" "$role"
 }
 
 run_apply_step() {
     print_banner "$STEP_STYLE" "2/3 Apply"
     if [ -x "$HOOK_PATH" ]; then
-        "$HOOK_PATH"
+        run_visible_step "update hook" "$HOOK_PATH"
         return
     fi
     run_setup_recipe
@@ -96,17 +177,29 @@ run_apply_step() {
 run_claude_step() {
     print_banner "$STEP_STYLE" "3/3 Claude Code instances (tmux)"
     if command -v claude >/dev/null && tmux list-sessions >/dev/null 2>&1; then
-        "$DOTFILES_DIRECTORY/tmux/restart-claude.sh"
+        run_quiet_step "Claude Code restart" "$DOTFILES_DIRECTORY/tmux/restart-claude.sh"
         return
     fi
-    echo "No Claude Code in tmux, nothing to reload"
+    print_step_ok "No Claude Code in tmux, nothing to reload"
+}
+
+run_steps() {
+    run_pull_step && run_apply_step && run_claude_step
 }
 
 main() {
-    run_pull_step
-    run_apply_step
-    run_claude_step
+    local steps_status=0 summary_status=0
+    parse_arguments "$@"
+    prepare_run_files
+    start_sudo_keepalive
+    trap end_sudo_session EXIT
+    run_steps || steps_status=$?
+    print_report_summary || summary_status=$?
+    if [ "$steps_status" -ne 0 ] || [ "$summary_status" -ne 0 ]; then
+        print_banner "$FAILED_STYLE" "Update finished with errors"
+        exit 1
+    fi
     print_banner "$DONE_STYLE" "Update done"
 }
 
-main
+main "$@"

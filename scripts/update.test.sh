@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Tests of update.sh against a temporary origin, clone and config directory, with stubbed just and tmux.
+# Tests of update.sh against a temporary origin, clone, config and state directory, with stubbed just, tmux, sudo and gh.
 # Usage: update.test.sh
 #   prints `ok <name>` or `FAIL <name>: <detail>` per test and a summary line; exits 1 when a test failed
 # Isolation: everything lives in a mktemp -d sandbox removed on exit; the real repo, config and git config are never touched.
@@ -33,15 +33,24 @@ report() {
 
 write_stubs() {
     mkdir -p "$SANDBOX/bin"
-    printf '#!/usr/bin/env bash\necho "just $*" >>"%s"\n' "$SANDBOX/calls" >"$SANDBOX/bin/just"
+    cat >"$SANDBOX/bin/just" <<STUB
+#!/usr/bin/env bash
+case "\$*" in
+    *--dump*) cat "$SANDBOX/dump.json" ;;
+    *) echo "just \$*" >>"$SANDBOX/calls" ;;
+esac
+STUB
+    printf '#!/usr/bin/env bash\necho "sudo $*" >>"%s"\n' "$SANDBOX/sudo_calls" >"$SANDBOX/bin/sudo"
     printf '#!/usr/bin/env bash\nexit 1\n' >"$SANDBOX/bin/tmux"
-    chmod +x "$SANDBOX/bin/just" "$SANDBOX/bin/tmux"
+    printf '#!/usr/bin/env bash\nexit 1\n' >"$SANDBOX/bin/gh"
+    chmod +x "$SANDBOX/bin/just" "$SANDBOX/bin/tmux" "$SANDBOX/bin/sudo" "$SANDBOX/bin/gh"
+    printf '%s' '{"recipes":{"dev":{"dependencies":[{"recipe":"record-role","arguments":["dev"]},{"recipe":"system","arguments":[]},{"recipe":"gh-auth","arguments":[]}]}}}' >"$SANDBOX/dump.json"
 }
 
 setup_scenario() {
-    rm -rf "$SANDBOX/origin.git" "$SANDBOX/clone" "$SANDBOX/peer" "$SANDBOX/config" "$SANDBOX/calls"
+    rm -rf "$SANDBOX/origin.git" "$SANDBOX/clone" "$SANDBOX/peer" "$SANDBOX/config" "$SANDBOX/state" "$SANDBOX/calls" "$SANDBOX/sudo_calls"
     mkdir -p "$SANDBOX/config/dotfiles"
-    touch "$SANDBOX/calls"
+    touch "$SANDBOX/calls" "$SANDBOX/sudo_calls"
     git init -q --bare -b main "$SANDBOX/origin.git"
     git clone -q "$SANDBOX/origin.git" "$SANDBOX/clone" 2>/dev/null
     git -C "$SANDBOX/clone" checkout -q -b main
@@ -64,12 +73,22 @@ install_hook() {
     chmod +x "$SANDBOX/config/dotfiles/update-hook"
 }
 
+update_arguments=(--verbose)
+preset_report=""
+
 run_update() {
-    stdout="$(PATH="$SANDBOX/bin:$PATH" DOTFILES_DIRECTORY="$SANDBOX/clone" XDG_CONFIG_HOME="$SANDBOX/config" \
-        "$UPDATE_SCRIPT" 2>"$SANDBOX/stderr")"
+    stdout="$(env -u UPDATE_LOG -u UPDATE_REPORT ${preset_report:+UPDATE_REPORT="$preset_report"} \
+        PATH="$SANDBOX/bin:$PATH" DOTFILES_DIRECTORY="$SANDBOX/clone" XDG_CONFIG_HOME="$SANDBOX/config" \
+        XDG_STATE_HOME="$SANDBOX/state" "$UPDATE_SCRIPT" "${update_arguments[@]}" 2>"$SANDBOX/stderr")"
     exit_status=$?
     stderr="$(cat "$SANDBOX/stderr")"
     calls="$(cat "$SANDBOX/calls")"
+    sudo_calls="$(cat "$SANDBOX/sudo_calls")"
+}
+
+install_hook_script() {
+    printf '#!/usr/bin/env bash\n%s\n' "$1" >"$SANDBOX/config/dotfiles/update-hook"
+    chmod +x "$SANDBOX/config/dotfiles/update-hook"
 }
 
 test_hook_runs_and_not_just() {
@@ -141,7 +160,130 @@ test_up_to_date_does_not_reexec() {
     report "should not re-exec when the repo is already up to date" "$detail"
 }
 
+test_unknown_argument_is_rejected() {
+    local detail=""
+    setup_scenario
+    update_arguments=(--fast)
+    run_update
+    update_arguments=(--verbose)
+    [[ "$exit_status" == 2 ]] || detail="exit status $exit_status"
+    [[ "$stderr" == *"Usage: update.sh [--verbose]"* ]] || detail="$detail stderr [$stderr]"
+    [[ -z "$calls" ]] || detail="$detail calls [$calls]"
+    report "should reject an unknown argument with a usage message and run nothing" "$detail"
+}
+
+test_verbose_has_no_log() {
+    local detail=""
+    setup_scenario
+    install_hook_script "echo \"log=\${UPDATE_LOG-unset} report=\${UPDATE_REPORT-unset}\" >>\"$SANDBOX/calls\""
+    run_update
+    [[ "$calls" == "log=unset report=$SANDBOX/state/dotfiles/update/"*.report ]] || detail="calls [$calls]"
+    [[ -z "$(ls "$SANDBOX"/state/dotfiles/update/*.log 2>/dev/null)" ]] || detail="$detail log created"
+    report "should export only UPDATE_REPORT and create no log with --verbose" "$detail"
+}
+
+test_quiet_run_exports_log_and_report() {
+    local detail=""
+    setup_scenario
+    install_hook_script "echo \"log=\$UPDATE_LOG report=\$UPDATE_REPORT\" >>\"$SANDBOX/calls\""
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$exit_status" == 0 ]] || detail="exit status $exit_status"
+    [[ "$calls" == "log=$SANDBOX/state/dotfiles/update/"*".log report=$SANDBOX/state/dotfiles/update/"*".report" ]] || detail="$detail calls [$calls]"
+    [[ -s "$(ls "$SANDBOX"/state/dotfiles/update/*.report)" ]] && detail="$detail report not empty"
+    [[ "$(stat -c %a "$SANDBOX/state/dotfiles/update")" == 700 ]] || detail="$detail directory not 700"
+    report "should export a log and an empty report in a private directory in quiet mode" "$detail"
+}
+
+test_preset_report_is_used_and_truncated() {
+    local detail="" preset="$SANDBOX/outside/caller.report"
+    setup_scenario
+    mkdir -p "$SANDBOX/outside"
+    echo "WARN stale" >"$preset"
+    install_hook_script "echo 'WARN from hook' >>\"\$UPDATE_REPORT\""
+    preset_report="$preset"
+    update_arguments=()
+    run_update
+    preset_report=""
+    update_arguments=(--verbose)
+    [[ "$exit_status" == 0 ]] || detail="exit status $exit_status"
+    [[ "$(cat "$preset")" == "WARN from hook" ]] || detail="$detail preset content [$(cat "$preset")]"
+    [[ -z "$(ls "$SANDBOX"/state/dotfiles/update/*.report 2>/dev/null)" ]] || detail="$detail generated a report anyway"
+    report "should use and truncate a UPDATE_REPORT preset by the caller" "$detail"
+}
+
+test_error_in_report_fails_with_summary() {
+    local detail=""
+    setup_scenario
+    install_hook_script "echo 'ERROR boom' >>\"\$UPDATE_REPORT\""
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$exit_status" == 1 ]] || detail="exit status $exit_status"
+    [[ "$stdout" == *"1 ERROR"* && "$stdout" == *"ERROR boom"* && "$stdout" == *"log: $SANDBOX/state"* ]] || detail="$detail stdout [$stdout]"
+    report "should print the summary with the log path and exit 1 when the report holds an ERROR" "$detail"
+}
+
+test_failing_hook_is_reported() {
+    local detail=""
+    setup_scenario
+    install_hook_script "exit 7"
+    run_update
+    [[ "$exit_status" == 1 ]] || detail="exit status $exit_status"
+    [[ "$stdout" == *"ERROR update hook"* ]] || detail="$detail stdout [$stdout]"
+    report "should report an ERROR and exit 1 when the update hook fails" "$detail"
+}
+
+test_old_runs_are_pruned() {
+    local detail="" index
+    setup_scenario
+    install_hook
+    mkdir -p "$SANDBOX/state/dotfiles/update"
+    for index in $(seq -w 1 20); do
+        touch "$SANDBOX/state/dotfiles/update/2020-01-$index""T00-00-00.log"
+    done
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$(ls "$SANDBOX"/state/dotfiles/update/*.log | wc -l)" == 14 ]] || detail="log count $(ls "$SANDBOX"/state/dotfiles/update/*.log | wc -l)"
+    [[ -e "$SANDBOX/state/dotfiles/update/2020-01-01T00-00-00.log" ]] && detail="$detail oldest kept"
+    report "should keep only the 14 newest logs" "$detail"
+}
+
+test_sudo_session_ends_on_exit() {
+    local detail=""
+    setup_scenario
+    install_hook
+    run_update
+    [[ "$sudo_calls" == *"sudo -k"* ]] || detail="sudo calls [$sudo_calls]"
+    report "should invalidate the sudo timestamp when the run ends" "$detail"
+}
+
+test_quiet_role_run_goes_step_by_step() {
+    local detail=""
+    setup_scenario
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    [[ "$exit_status" == 0 ]] || detail="exit status $exit_status"
+    [[ "$stdout" == *"✓ record-role dev"* && "$stdout" == *"✓ system"* ]] || detail="$detail stdout [$stdout]"
+    [[ "$stdout" == *"gh not authenticated, skipped gh-auth"* ]] || detail="$detail no gh skip warning"
+    [[ "$calls" == "just -f $SANDBOX/clone/Justfile record-role dev"$'\n'"just -f $SANDBOX/clone/Justfile system" ]] || detail="$detail calls [$calls]"
+    report "should run the dev recipe steps one by one and skip gh-auth when gh is not logged in" "$detail"
+}
+
 write_stubs
+test_unknown_argument_is_rejected
+test_verbose_has_no_log
+test_quiet_run_exports_log_and_report
+test_preset_report_is_used_and_truncated
+test_error_in_report_fails_with_summary
+test_failing_hook_is_reported
+test_old_runs_are_pruned
+test_sudo_session_ends_on_exit
+test_quiet_role_run_goes_step_by_step
 test_hook_runs_and_not_just
 test_server_role_runs_just
 test_missing_role_fails
