@@ -1,4 +1,9 @@
 {
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "cleanupPeriodDays": 3650,
   "enabledPlugins": {
     "context7@claude-plugins-official": true,
