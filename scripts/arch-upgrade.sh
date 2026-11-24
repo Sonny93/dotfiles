@@ -17,7 +17,6 @@ readonly POLL_SECONDS=1
 readonly NETWORK_TIMEOUT_SECONDS=60
 readonly KEPT_PACMAN_LOGS=14
 readonly PRUNE_SCRIPT='find "$1" -maxdepth 1 -type f -name "pacman-*.log" | sort | head -n "-$2" | xargs -r rm -f --'
-readonly INTERRUPTED_STATUS=130
 readonly NO_TERMINAL_STATUS=2
 readonly APPLY_PROMPT="Appliquer ? [O/n]"
 readonly ORPHANS_PROMPT="Supprimer les orphelins ? [O/n]"
