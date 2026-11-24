@@ -123,9 +123,9 @@ main() {
         list_step_labels <<<"$steps"
         return
     fi
-    while IFS=$'\t' read -r -a step_fields; do
-        run_step "${step_fields[@]}" || failed_count=$((failed_count + 1))
-    done <<<"$steps"
+    while IFS=$'\t' read -r -a step_fields <&"$STEP_LIST_DESCRIPTOR"; do
+        run_step "${step_fields[@]}" {STEP_LIST_DESCRIPTOR}<&- || failed_count=$((failed_count + 1))
+    done {STEP_LIST_DESCRIPTOR}<<<"$steps"
     [ "$failed_count" -eq 0 ]
 }
 

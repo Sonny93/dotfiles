@@ -37,6 +37,7 @@ write_stubs() {
 #!/usr/bin/env bash
 case "\$*" in
     *--dump*) cat "$SANDBOX/dump.json" ;;
+    *" system") echo "just \$*" >>"$SANDBOX/calls"; read -r -t 1 stdin_line; echo "\${stdin_line:-}" >"$SANDBOX/system_stdin" ;;
     *) echo "just \$*" >>"$SANDBOX/calls" ;;
 esac
 STUB
@@ -296,6 +297,18 @@ test_quiet_role_run_numbers_every_step() {
     report "should print the plan once and number every step up to N, skipped steps included" "$detail"
 }
 
+test_system_step_reads_the_caller_input() {
+    local detail="" system_stdin
+    setup_scenario
+    echo dev >"$SANDBOX/config/dotfiles/role"
+    update_arguments=()
+    run_update <<<"answer from the caller"
+    update_arguments=(--verbose)
+    system_stdin="$(cat "$SANDBOX/system_stdin" 2>/dev/null)"
+    [[ "$system_stdin" == "answer from the caller" ]] || detail="system step read [$system_stdin]"
+    report "should give the visible system step the caller's input, not the step list" "$detail"
+}
+
 test_failed_sudo_login_counts_skipped_root_steps() {
     local detail=""
     setup_scenario
@@ -398,6 +411,7 @@ test_old_runs_are_pruned
 test_sudo_session_ends_on_exit
 test_quiet_role_run_goes_step_by_step
 test_quiet_role_run_numbers_every_step
+test_system_step_reads_the_caller_input
 test_failed_sudo_login_counts_skipped_root_steps
 test_hook_step_is_not_counted
 test_verbose_run_has_no_counter
