@@ -204,7 +204,39 @@ test_step_timeout_override_order() {
     report "should use 600 seconds, a per-call value, and let UPDATE_STEP_TIMEOUT win" "$detail"
 }
 
+wait_for_file() {
+    local path="$1"
+    for _ in $(seq 50); do
+        [[ -s "$path" ]] && return 0
+        sleep 0.1
+    done
+    return 1
+}
+
+test_interrupt_kills_the_step_group() {
+    local detail="" signal runner_pid group_id step_status
+    for signal in TERM HUP; do
+        reset_files
+        rm -f "$SANDBOX/group" "$SANDBOX/status"
+        (
+            run_quiet_step "Sleepy" sh -c 'ps -o pgid= -p $$ >"$1"; sleep 30' sh "$SANDBOX/group" >/dev/null 2>&1
+            echo $? >"$SANDBOX/status"
+        ) &
+        runner_pid=$!
+        wait_for_file "$SANDBOX/group" || detail="$detail $signal: step did not start"
+        group_id="$(tr -d ' \n' <"$SANDBOX/group")"
+        kill -s "$signal" "$runner_pid"
+        wait "$runner_pid" 2>/dev/null
+        step_status="$(cat "$SANDBOX/status" 2>/dev/null)"
+        [[ -n "$step_status" && "$step_status" != 0 ]] || detail="$detail $signal: status [$step_status]"
+        ! kill -0 -- "-$group_id" 2>/dev/null || detail="$detail $signal: group $group_id still alive"
+        [[ "$(cat "$UPDATE_REPORT")" == "ERROR Sleepy" ]] || detail="$detail $signal: report [$(cat "$UPDATE_REPORT")]"
+    done
+    report "should kill the step's process group and fail when the runner gets TERM or HUP" "$detail"
+}
+
 test_quiet_step_success
+test_interrupt_kills_the_step_group
 test_quiet_step_has_no_controlling_session
 test_quiet_root_step_keeps_the_session
 test_quiet_root_step_failure_is_reported

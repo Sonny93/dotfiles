@@ -224,7 +224,8 @@ Files, in `${XDG_STATE_HOME:-~/.local/state}/dotfiles/update` (mode 700):
 
 Safety:
 
-- A sudo keep-alive refreshes the credentials every 60 seconds during the run, and `sudo -k` runs on exit.
+- A sudo keep-alive refreshes the credentials every 60 seconds during the run, and `sudo -k` runs on exit. While the file named by `UPDATE_SUDO_PAUSE_FILE` (exported, unique per run, under `$XDG_RUNTIME_DIR`) exists, the keep-alive stops refreshing: a caller such as the update hook creates it before AUR builds (`paru`) and removes it afterwards, so build scripts never get a renewed ticket. `update` also removes it on exit.
+- Ctrl+C, SIGTERM or a closed terminal kills the process group of the running quiet step; the step is reported `✗` and `update` stops with a non-zero status.
 - Quiet steps run with stdin closed, `GIT_TERMINAL_PROMPT=0`, `LC_ALL=C`, in a new session without a controlling terminal (`setsid`) and under `timeout` (600 seconds by default, 1800 for `mise`; `UPDATE_STEP_TIMEOUT` overrides both, and a timeout kills the whole process group). Without a terminal, sudo cannot use the terminal-bound ticket kept alive by the keep-alive (`timestamp_type`, see `man sudoers`: with no terminal the record is keyed by parent process id, so a third-party install script calling `sudo -n` fails). A live `… <step>` line is shown on a terminal and replaced by the result line.
 - Steps that call sudo (`build-deps`, the orphan removal) keep the terminal. When no sudo ticket is cached, `dev-update.sh` asks once (`sudo -v`, 120 seconds) before the first one and skips the root steps with a `WARN` naming the recipe if that fails.
 - Steps that may ask something run attached to the terminal: `system` (the upgrade confirmation) and the update hook. `gh-auth` is skipped with a `WARN` when `gh` is not logged in (run `just gh-auth`).

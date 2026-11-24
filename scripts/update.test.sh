@@ -85,7 +85,8 @@ preset_report=""
 run_update() {
     stdout="$(env -u UPDATE_LOG -u UPDATE_REPORT ${preset_report:+UPDATE_REPORT="$preset_report"} \
         PATH="$SANDBOX/bin:$PATH" DOTFILES_DIRECTORY="$SANDBOX/clone" XDG_CONFIG_HOME="$SANDBOX/config" \
-        XDG_STATE_HOME="$SANDBOX/state" "$UPDATE_SCRIPT" "${update_arguments[@]}" 2>"$SANDBOX/stderr")"
+        XDG_STATE_HOME="$SANDBOX/state" XDG_RUNTIME_DIR="$SANDBOX/runtime" UPDATE_SUDO_REFRESH_SECONDS=1 \
+        "$UPDATE_SCRIPT" "${update_arguments[@]}" 2>"$SANDBOX/stderr")"
     exit_status=$?
     stderr="$(cat "$SANDBOX/stderr")"
     calls="$(cat "$SANDBOX/calls")"
@@ -318,7 +319,30 @@ test_failed_sudo_login_skips_root_steps() {
     report "should skip the root steps with a WARN when the sudo login fails" "$detail"
 }
 
+test_keepalive_pauses_while_pause_file_exists() {
+    local detail=""
+    setup_scenario
+    mkdir -p "$SANDBOX/runtime"
+    install_hook_script "sleep 1.5
+touch \"\$UPDATE_SUDO_PAUSE_FILE\"
+echo \"\$UPDATE_SUDO_PAUSE_FILE\" >\"$SANDBOX/pause_path\"
+before=\$(grep -c 'sudo -n -v' \"$SANDBOX/sudo_calls\")
+sleep 3
+after=\$(grep -c 'sudo -n -v' \"$SANDBOX/sudo_calls\")
+echo \"\$before \$after\" >\"$SANDBOX/pause_counts\""
+    update_arguments=()
+    run_update
+    update_arguments=(--verbose)
+    read -r before after <"$SANDBOX/pause_counts"
+    [[ "$before" -ge 1 ]] || detail="keep-alive never ran (before $before)"
+    [[ "$before" == "$after" ]] || detail="$detail sudo refreshed while paused ($before -> $after)"
+    [[ "$(cat "$SANDBOX/pause_path")" == "$SANDBOX/runtime/dotfiles-update-sudo-pause-"* ]] || detail="$detail path [$(cat "$SANDBOX/pause_path")]"
+    [[ ! -e "$(cat "$SANDBOX/pause_path")" ]] || detail="$detail pause file left behind"
+    report "should not refresh the sudo ticket while the pause file exists and remove it on exit" "$detail"
+}
+
 write_stubs
+test_keepalive_pauses_while_pause_file_exists
 test_unknown_argument_is_rejected
 test_verbose_has_no_log
 test_quiet_run_exports_log_and_report

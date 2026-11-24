@@ -4,6 +4,8 @@
 #   default is quiet: banners, one result line per step, the pulled commits and a final summary; everything else goes to UPDATE_LOG
 #   --verbose prints the full output of every step instead (no UPDATE_LOG)
 #   UPDATE_REPORT (one `WARN|ERROR|REBOOT <text>` line each) is always written; a preset value is used as is, so a caller can read it afterwards
+#   UPDATE_SUDO_PAUSE_FILE (exported, unique per run): while that file exists the sudo keep-alive stops refreshing the ticket;
+#   a caller creates it before running AUR builds and removes it after; update.sh removes it on exit
 #   logs and reports live in ${XDG_STATE_HOME:-~/.local/state}/dotfiles/update, the 14 newest are kept
 #   exits non-zero when a step failed or the report holds an ERROR
 #   DOTFILES_DIRECTORY overrides the repo location (tests); DOTFILES_UPDATE_PULLED=1 marks the re-exec after a pull
@@ -22,7 +24,7 @@ readonly DONE_STYLE='\e[1;30;42m'
 readonly FAILED_STYLE='\e[1;30;41m'
 readonly STATE_DIRECTORY="${XDG_STATE_HOME:-$HOME/.local/state}/dotfiles/update"
 readonly KEPT_RUN_FILES=14
-readonly SUDO_REFRESH_SECONDS=60
+readonly SUDO_REFRESH_SECONDS="${UPDATE_SUDO_REFRESH_SECONDS:-60}"
 readonly USAGE_STATUS=2
 readonly FETCH_TIMEOUT_SECONDS=30
 readonly FETCH_LOW_SPEED_LIMIT=1000
@@ -84,6 +86,7 @@ prepare_run_files() {
         export UPDATE_LOG="$STATE_DIRECTORY/$timestamp.log"
         : >"$UPDATE_LOG"
     fi
+    export UPDATE_SUDO_PAUSE_FILE="${XDG_RUNTIME_DIR:-/tmp}/dotfiles-update-sudo-pause-$timestamp"
     export UPDATE_REPORT="${UPDATE_REPORT:-$STATE_DIRECTORY/$timestamp.report}"
     mkdir -p "$(dirname "$UPDATE_REPORT")"
     : >"$UPDATE_REPORT"
@@ -95,7 +98,7 @@ start_sudo_keepalive() {
     local parent_pid="$$"
     (
         while kill -0 "$parent_pid" 2>/dev/null; do
-            sudo -n -v 2>/dev/null || true
+            [ -e "${UPDATE_SUDO_PAUSE_FILE:-}" ] || sudo -n -v 2>/dev/null || true
             sleep "$SUDO_REFRESH_SECONDS"
         done
     ) </dev/null >/dev/null 2>&1 &
@@ -109,6 +112,7 @@ stop_sudo_keepalive() {
 
 end_sudo_session() {
     stop_sudo_keepalive
+    [ -z "${UPDATE_SUDO_PAUSE_FILE:-}" ] || rm -f -- "$UPDATE_SUDO_PAUSE_FILE"
     command -v sudo >/dev/null || return 0
     sudo -k 2>/dev/null || true
 }

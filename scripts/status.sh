@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # Status helpers (ok, warn, info, check_link) for doctor recipes and quiet update steps (run_quiet_step, run_visible_step, report_line); meant to be sourced.
 #   run_quiet_step runs in a new session (setsid, no controlling terminal: the tty-bound sudo ticket is unusable there);
+#   an INT, TERM or HUP received while it runs kills the step's process group and the step returns 130.
 #   run_quiet_root_step keeps the terminal for steps that call sudo with the cached ticket.
 #   Timeout: UPDATE_STEP_TIMEOUT overrides everything, else STEP_TIMEOUT_SECONDS set for one call, else 600 seconds.
 #   UPDATE_LOG (run log) and UPDATE_REPORT (WARN/ERROR/REBOOT lines) are set by update.sh; both unset means plain verbose behavior.
@@ -38,6 +39,7 @@ check_link() {
 
 readonly DEFAULT_STEP_TIMEOUT_SECONDS=600
 readonly KILL_GRACE_SECONDS=30
+readonly INTERRUPTED_STATUS=130
 readonly FAILURE_EXCERPT_LINES=15
 readonly FAILURE_PATTERN='error|fatal|conflict|failed'
 
@@ -84,8 +86,20 @@ resolve_step_timeout() {
 }
 
 run_detached_command() {
-    env GIT_TERMINAL_PROMPT=0 LC_ALL=C setsid -w timeout -k "$KILL_GRACE_SECONDS" "$(resolve_step_timeout)" "$@" \
-        </dev/null >>"$UPDATE_LOG" 2>&1
+    local step_pid command_status=0 was_interrupted=0 saved_traps
+    saved_traps="$(trap -p INT TERM HUP)"
+    env GIT_TERMINAL_PROMPT=0 LC_ALL=C setsid timeout -k "$KILL_GRACE_SECONDS" "$(resolve_step_timeout)" "$@" \
+        </dev/null >>"$UPDATE_LOG" 2>&1 &
+    step_pid=$!
+    trap 'was_interrupted=1; kill -TERM -- -"$step_pid" 2>/dev/null' INT TERM HUP
+    wait "$step_pid" || command_status=$?
+    if [ "$was_interrupted" -eq 1 ]; then
+        wait "$step_pid" 2>/dev/null || true
+        command_status="$INTERRUPTED_STATUS"
+    fi
+    trap - INT TERM HUP
+    [ -z "$saved_traps" ] || eval "$saved_traps"
+    return "$command_status"
 }
 
 run_attached_command() {
